@@ -1,0 +1,56 @@
+# LUMI — Voice Processing System Configuration
+# All settings are validated at startup.  See src/config.py for defaults.
+
+wake_word:
+  # Path to the custom hey_lumi.onnx model (must be legitimately obtained).
+  model_path: models/wake_words/hey_lumi.onnx
+  # Fallback pretrained model name (e.g. hey_jarvis) if available.
+  fallback_model: hey_jarvis
+  # Score threshold for wake-word detection (0.0–1.0).
+  score_threshold: 0.6
+  # Cooldown in ms between repeated wake-word triggers.
+  cooldown_ms: 2000
+
+vad:
+  # Silero VAD speech probability threshold (0.0–1.0).
+  threshold: 0.5
+  # Trailing silence duration (ms) before utterance is considered ended.
+  min_silence_duration_ms: 700
+  # Audio sample rate (Hz).
+  sample_rate: 16000
+
+stt:
+  # Faster-Whisper model identifier (base.en, tiny.en, etc.).
+  model: base.en
+  # Inference device: cpu or cuda.
+  device: cpu
+  # Compute type: int8, float16, int8_float16, etc.
+  compute_type: int8
+  # Beam search width.
+  beam_size: 1
+  # ISO 639-1 language code, or null for auto-detect.
+  language: en
+
+tts:
+  # Piper voice model path (relative to project root).
+  model_path: models/tts/en_US-lessac-medium.onnx
+  # Piper voice config path.
+  config_path: models/tts/en_US-lessac-medium.onnx.json
+  # TTS length scale (1.0 = normal speed, >1.0 = slower, <1.0 = faster).
+  length_scale: 1.1
+  # Output directory for generated audio assets.
+  output_dir: audio/generated
+
+pipeline:
+  # Max time (ms) to wait for speech after wake-word.
+  utterance_timeout_ms: 10000
+  # Max recording duration (ms) before forcing an end.
+  max_recording_ms: 30000
+  # Base audio asset directory.
+  audio_dir: audio
+  # Logging verbosity: DEBUG, INFO, WARNING, ERROR.
+  log_level: INFO
+  # Retain raw audio for debugging (privacy: default False).
+  retain_audio_for_debug: false
+  # Retain transcripts for debugging (privacy: default False).
+  retain_transcripts_for_debug: false

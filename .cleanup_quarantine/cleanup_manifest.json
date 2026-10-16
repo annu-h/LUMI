@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-10-15T16:28:49Z",
+  "quarantined_items": [
+    {
+      "original_path": "C:\\Users\\basar\\Desktop\\LUMI\\C\uf03aUsersbasarDesktopLUMIaudiogenerated",
+      "quarantined_path": "C:\\Users\\basar\\Desktop\\LUMI\\.cleanup_quarantine\\C\uf03aUsersbasarDesktopLUMIaudiogenerated",
+      "is_dir": true,
+      "size_bytes": 0
+    },
+    {
+      "original_path": "C:\\Users\\basar\\Desktop\\LUMI\\C\uf03aUsersbasarDesktopLUMItests",
+      "quarantined_path": "C:\\Users\\basar\\Desktop\\LUMI\\.cleanup_quarantine\\C\uf03aUsersbasarDesktopLUMItests",
+      "is_dir": true,
+      "size_bytes": 0
+    }
+  ]
+}

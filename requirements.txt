@@ -1,0 +1,23 @@
+# Project LUMI — Voice Processing System
+# Core dependencies for the voice pipeline.
+# Install with: pip install -r requirements.txt
+
+# --- Testing ---
+pytest>=7.0
+
+# --- Audio ---
+soundfile>=0.12
+numpy>=1.24
+
+# --- Configuration ---
+pyyaml>=6.0
+
+# --- Voice pipeline (install as needed per stage) ---
+# Stage 3: VAD + Wake Word
+# pip install silero-vad openwakeword
+
+# Stage 4: STT (already installed: faster-whisper, ctranslate2)
+# faster-whisper>=1.0
+
+# Stage 5: TTS
+# pip install piper-tts

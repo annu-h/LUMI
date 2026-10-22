@@ -1,0 +1,43 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+enve/
+.enve/
+env.bak/
+venv.bak/
+
+# AI and IDE assistant metadata & quarantine folders
+.claude/
+.cleanup_quarantine/
+.gemini/
+.idea/
+.vscode/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Test & temporary run outputs
+output/
+tools/voice_lab/temp_outputs/
+*.log
+
+# Corrupt / backup files
+*.bak
+*.bak.*
+backup_invalid/
+
+# Large AI model binaries (managed locally / fetched via audit_models.py)
+*.onnx
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

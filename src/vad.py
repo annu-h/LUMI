@@ -133,6 +133,15 @@ class SileroVAD(VAD):
             ) from exc
 
         try:
+            from silero_vad import load_silero_vad
+            self._model = load_silero_vad()
+            self._model.eval()
+            logger.info("SileroVAD model loaded via silero_vad package.")
+            return
+        except Exception:
+            pass
+
+        try:
             import torch
             self._model, self._utils = torch.hub.load(
                 repo_or_dir="snakers4/silero-vad",
@@ -141,7 +150,7 @@ class SileroVAD(VAD):
                 onnx=False,
             )
             self._model.eval()
-            logger.info("SileroVAD model loaded.")
+            logger.info("SileroVAD model loaded via torch.hub.")
         except Exception as exc:
             raise RuntimeError(f"Failed to load Silero VAD model: {exc}") from exc
 

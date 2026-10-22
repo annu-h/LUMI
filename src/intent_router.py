@@ -16,6 +16,7 @@ Keypad mapping:
 
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 from .intent_classifier import Intent, ClassificationResult
@@ -25,7 +26,14 @@ from .rtc_service import RTCService
 
 logger = logging.getLogger(__name__)
 
-# Keypad digit → Intent mapping
+
+class KeypadMode(str, Enum):
+    """Operational mode for the physical/virtual keypad."""
+    SHORTCUT = "shortcut"  # Single-key triggers direct intent (1=Story, 2=Learn, etc.)
+    NUMERIC = "numeric"    # Digits accumulate for math/quiz answers; * clears, # submits
+
+
+# Keypad digit → Intent mapping (Shortcut Mode)
 KEYPAD_MAP: dict[str, Intent] = {
     "0": Intent.HELLO,
     "1": Intent.STORY,
@@ -34,6 +42,8 @@ KEYPAD_MAP: dict[str, Intent] = {
     "4": Intent.HOBBIES,
     "5": Intent.FAVORITES,
     "6": Intent.TIME,
+    "*": Intent.BACK,
+    "#": Intent.NEXT,
     "BACKWARD": Intent.BACK,
     "FORWARD": Intent.NEXT,
 }
@@ -52,16 +62,43 @@ class IntentRouter:
     """Routes intents (from voice or keypad) to response text.
 
     All handlers return a RoutingResult with TTS-ready response_text.
+    Supports both SHORTCUT mode (1=Story, 2=Learn, etc.) and NUMERIC entry mode.
     """
 
     def __init__(self, catalog: ContentCatalog,
                  profile_service: ProfileService,
                  rtc: RTCService,
-                 last_response: Optional[str] = None) -> None:
+                 last_response: Optional[str] = None,
+                 keypad_mode: KeypadMode = KeypadMode.SHORTCUT) -> None:
         self._catalog = catalog
         self._profile = profile_service
         self._rtc = rtc
         self._last_response: Optional[str] = last_response
+        self._keypad_mode: KeypadMode = keypad_mode
+        self._numeric_buffer: str = ""
+
+    @property
+    def keypad_mode(self) -> KeypadMode:
+        """Return the current keypad mode."""
+        return self._keypad_mode
+
+    @keypad_mode.setter
+    def keypad_mode(self, mode: KeypadMode) -> None:
+        self.set_keypad_mode(mode)
+
+    def set_keypad_mode(self, mode: KeypadMode) -> None:
+        """Switch between SHORTCUT mode and NUMERIC entry mode."""
+        self._keypad_mode = mode
+        if mode == KeypadMode.SHORTCUT:
+            self._numeric_buffer = ""
+
+    def get_numeric_buffer(self) -> str:
+        """Return the accumulated numeric string."""
+        return self._numeric_buffer
+
+    def clear_numeric_buffer(self) -> None:
+        """Clear the accumulated numeric string."""
+        self._numeric_buffer = ""
 
     def route(self, result: ClassificationResult) -> RoutingResult:
         """Route a ClassificationResult to a RoutingResult."""
@@ -96,9 +133,50 @@ class IntentRouter:
         logger.debug("Router: %s → '%s'", intent.value, result.response_text[:60])
         return result
 
-    def route_keypad(self, key: str) -> RoutingResult:
-        """Route a keypad key press.  Same handlers as voice."""
-        intent = KEYPAD_MAP.get(key.upper(), Intent.UNKNOWN)
+    def route_keypad(self, key: str, mode: Optional[KeypadMode] = None) -> RoutingResult:
+        """Route a keypad key press.
+
+        In SHORTCUT mode (default), keys route directly through the shared intent handlers.
+        In NUMERIC mode, digits accumulate into the numeric buffer, '*' clears/backspaces,
+        and '#' submits the accumulated number.
+        """
+        active_mode = mode if mode is not None else self._keypad_mode
+        key_upper = key.strip().upper()
+
+        if active_mode == KeypadMode.NUMERIC:
+            if key_upper in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"):
+                self._numeric_buffer += key_upper
+                return RoutingResult(
+                    intent=Intent.UNKNOWN,
+                    response_text=f"Entered {key_upper}. Current number: {self._numeric_buffer}.",
+                )
+            elif key_upper in ("*", "BACKWARD", "CLEAR", "BACK"):
+                if self._numeric_buffer:
+                    removed = self._numeric_buffer[-1]
+                    self._numeric_buffer = self._numeric_buffer[:-1]
+                    return RoutingResult(
+                        intent=Intent.BACK,
+                        response_text=f"Cleared {removed}. Current number: {self._numeric_buffer if self._numeric_buffer else 'empty'}.",
+                    )
+                return RoutingResult(
+                    intent=Intent.BACK,
+                    response_text="Number buffer is already empty.",
+                )
+            elif key_upper in ("#", "FORWARD", "ENTER", "SUBMIT"):
+                submitted = self._numeric_buffer
+                self._numeric_buffer = ""
+                if submitted:
+                    return RoutingResult(
+                        intent=Intent.NEXT,
+                        response_text=f"You entered the number {submitted}!",
+                    )
+                return RoutingResult(
+                    intent=Intent.UNKNOWN,
+                    response_text="No number entered.",
+                )
+
+        # SHORTCUT mode (default)
+        intent = KEYPAD_MAP.get(key_upper, Intent.UNKNOWN)
         return self.route_intent(intent)
 
     # ------------------------------------------------------------------

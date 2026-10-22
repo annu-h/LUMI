@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMI Companion — Interactive UI/UX Hardware Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Global Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-badge">ESP32 FIRMWARE RUNNER</div>
+        <h1>LUMI Companion <span>UI/UX Interface</span></h1>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator online">
+          <span class="dot"></span>
+          <span>TFT_eSPI Driver Ready (320×240)</span>
+        </div>
+        <div class="status-indicator active-keypad">
+          <span class="dot yellow"></span>
+          <span>4×3 Matrix Keypad Active</span>
+        </div>
+        <button id="btnSoundToggle" class="btn btn-audio active" title="Toggle audio sound FX">
+          <span class="icon">🔊</span> <span id="soundLabel">Sound ON</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-stage">
+      <!-- Left Column: The Physical Device Mockup -->
+      <section class="device-section">
+        <div class="device-chassis">
+          <!-- Device Top Shell -->
+          <div class="device-header">
+            <div class="device-logo">
+              <span class="star-icon">⭐</span>
+              <span class="logo-text">LUMI Companion</span>
+            </div>
+            <div class="device-hardware-info">
+              <div class="mic-hole" title="MEMS Microphone (INMP441)"></div>
+              <div class="status-led led-green" title="Power LED: CR2032 Active"></div>
+            </div>
+          </div>
+
+          <!-- 320x240 TFT LCD Bezel -->
+          <div class="screen-bezel">
+            <div class="screen-glass">
+              <canvas id="tftCanvas" width="320" height="240"></canvas>
+              <div class="crt-scanlines"></div>
+              <div class="glass-glare"></div>
+            </div>
+            <div class="bezel-label">ILI9341 SPI 320×240 COLOR DISPLAY</div>
+          </div>
+
+          <!-- Mid Section: Speaker Grille -->
+          <div class="device-mid">
+            <div class="speaker-grille" id="speakerGrille" title="MAX98357A I2S Amplifier">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="expression-badge" id="faceExpressionLabel">FACE: IDLE</div>
+          </div>
+
+          <!-- 12-Button Matrix Keypad (Hardware mapping: GPIO 14,27,16,12 x 35,13,15) -->
+          <div class="keypad-container">
+            <div class="keypad-title">12-BUTTON NAVIGATION MATRIX</div>
+            <div class="keypad-grid">
+              <!-- Row 0: 1, 2, 3 -->
+              <button class="key-btn" data-key="NUM_1" data-row="0" data-col="0" id="key-1">
+                <span class="key-num">1</span>
+                <span class="key-sub">LEARN</span>
+              </button>
+              <button class="key-btn" data-key="NUM_2" data-row="0" data-col="1" id="key-2">
+                <span class="key-num">2</span>
+                <span class="key-sub">STORY</span>
+              </button>
+              <button class="key-btn" data-key="NUM_3" data-row="0" data-col="2" id="key-3">
+                <span class="key-num">3</span>
+                <span class="key-sub">QUIZ</span>
+              </button>
+
+              <!-- Row 1: 4, 5, 6 -->
+              <button class="key-btn" data-key="NUM_4" data-row="1" data-col="0" id="key-4">
+                <span class="key-num">4</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_5" data-row="1" data-col="1" id="key-5">
+                <span class="key-num">5</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_6" data-row="1" data-col="2" id="key-6">
+                <span class="key-num">6</span>
+                <span class="key-sub"></span>
+              </button>
+
+              <!-- Row 2: 7, 8, 9 -->
+              <button class="key-btn" data-key="NUM_7" data-row="2" data-col="0" id="key-7">
+                <span class="key-num">7</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_8" data-row="2" data-col="1" id="key-8">
+                <span class="key-num">8</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_9" data-row="2" data-col="2" id="key-9">
+                <span class="key-num">9</span>
+                <span class="key-sub">STARS</span>
+              </button>
+
+              <!-- Row 3: BACK, 0, FORWARD -->
+              <button class="key-btn key-nav key-back" data-key="BTN_BACKWARD" data-row="3" data-col="0" id="key-back">
+                <span class="key-num">◄</span>
+                <span class="key-sub">BACK</span>
+              </button>
+              <button class="key-btn" data-key="NUM_0" data-row="3" data-col="1" id="key-0">
+                <span class="key-num">0</span>
+                <span class="key-sub">HOME / NEXT</span>
+              </button>
+              <button class="key-btn key-nav key-fwd" data-key="BTN_FORWARD" data-row="3" data-col="2" id="key-fwd">
+                <span class="key-num">►</span>
+                <span class="key-sub">FORWARD</span>
+              </button>
+            </div>
+            <div class="keypad-hint">Keyboard Shortcuts: <b>0-9</b>, <b>Left Arrow / Backspace</b> (Back), <b>Right Arrow / Enter</b> (Forward)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Interactive Diagnostics & Control Lab -->
+      <section class="controls-section">
+        <!-- Panel 1: State Controller -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🎮 Screen & State Controller</h3>
+            <span class="chip" id="activeScreenChip">Screen: HOME</span>
+          </div>
+          <div class="panel-body">
+            <p class="panel-desc">Directly test screen states defined in <code>ui_manager.h</code>:</p>
+            <div class="button-row">
+              <button class="btn btn-tab" data-screen="HOME" id="btnScreenHome">🏠 Home</button>
+              <button class="btn btn-tab" data-screen="LEARNING" id="btnScreenLearn">📚 Learn Mode</button>
+              <button class="btn btn-tab" data-screen="QUIZ" id="btnScreenQuiz">❓ Quiz</button>
+              <button class="btn btn-tab" data-screen="STORY" id="btnScreenStory">📖 Story</button>
+              <button class="btn btn-tab" data-screen="SETTINGS" id="btnScreenSettings">⚙️ Setup</button>
+              <button class="btn btn-tab" data-screen="PROGRESS" id="btnScreenProgress">⭐ Stars</button>
+            </div>
+
+            <div class="sub-controls">
+              <div class="control-group">
+                <label>LUMI Animated Face Expression:</label>
+                <div class="btn-group">
+                  <button class="btn btn-sm face-btn active" data-face="IDLE">Idle (Blink)</button>
+                  <button class="btn btn-sm face-btn" data-face="LISTENING">Listening</button>
+                  <button class="btn btn-sm face-btn" data-face="THINKING">Thinking</button>
+                  <button class="btn btn-sm face-btn" data-face="SPEAKING">Speaking</button>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label>Battery Level: <span id="batteryVal">100%</span></label>
+                <input type="range" id="batterySlider" min="5" max="100" value="100" step="5">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Offline Educational Catalog Inspector -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📦 Offline Database Carousel</h3>
+            <span class="chip" id="carouselCounter">Item 1 of 8</span>
+          </div>
+          <div class="panel-body">
+            <div class="catalog-items-grid" id="catalogGrid">
+              <!-- Injected dynamically -->
+            </div>
+            <div class="carousel-actions">
+              <button class="btn btn-secondary" id="btnPrevItem">◀ Previous Item</button>
+              <button class="btn btn-primary" id="btnNextItem">Next Item ▶</button>
+              <button class="btn btn-accent" id="btnSpeakContent">🗣️ Speak Card Aloud</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Hardware Pin & Firmware Serial Telemetry -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3>⚡ ESP32 GPIO & Firmware Serial Log</h3>
+            <button class="btn btn-xs" id="btnClearLog">Clear Log</button>
+          </div>
+          <div class="panel-body">
+            <div class="pins-display">
+              <div class="pin-badge"><span class="pin-lbl">ROWS (PULLUP):</span> GPIO 14, 27, 16, 12</div>
+              <div class="pin-badge"><span class="pin-lbl">COLS (10k PU):</span> GPIO 35, 13, 15</div>
+              <div class="pin-badge"><span class="pin-lbl">TFT SPI:</span> CS: 5, DC: 2, MOSI: 23, SCLK: 18</div>
+            </div>
+            <div class="serial-console" id="serialConsole">
+              <div class="log-line info">[BOOT] ESP32-WROOM-32 booting firmware...</div>
+              <div class="log-line info">[SPI] TFT_eSPI initialized with rotation=1 (320x240 landscape)</div>
+              <div class="log-line info">[KEYPAD] 4x3 matrix driver ready (debounce 30ms)</div>
+              <div class="log-line success">[UI] UIManager::begin() -> ScreenState::HOME</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,15 +1,20 @@
 """
 LUMI — Audio Source Interface
 
-Defines the AudioSource ABC and a MockAudioSource for tests and development.
-A live microphone implementation will be added in a later stage.
+Defines the AudioSource ABC, FileAudioSource, MockAudioSource, and
+MicrophoneAudioSource (backed by sounddevice for live microphone input).
 """
 
 import abc
+import logging
+import queue
 import struct
+import time
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class AudioSource(abc.ABC):
@@ -31,9 +36,13 @@ class AudioSource(abc.ABC):
     def read_frames(self, num_frames: int) -> np.ndarray:
         """Return a 1-D int16 numpy array of `num_frames` samples.
 
-        Returns an empty array when the source is exhausted.
+        Returns an empty array when the source is exhausted or timed out.
         """
         ...
+
+    def flush(self) -> None:
+        """Flush any pending buffered audio (e.g. for echo suppression). Default no-op."""
+        pass
 
     def iter_chunks(self, chunk_frames: int) -> Iterator[np.ndarray]:
         """Iterate audio as fixed-size chunks."""
@@ -75,6 +84,9 @@ class FileAudioSource(AudioSource):
         self._pos += len(chunk)
         return chunk
 
+    def flush(self) -> None:
+        pass
+
 
 class MockAudioSource(AudioSource):
     """Audio source backed by a pre-supplied numpy array.
@@ -107,6 +119,9 @@ class MockAudioSource(AudioSource):
         self._pos += len(chunk)
         return chunk
 
+    def flush(self) -> None:
+        pass
+
     @classmethod
     def sine_wave(cls, freq_hz: float = 440.0, duration_s: float = 1.0,
                   sample_rate: int = 16000, amplitude: int = 8000) -> "MockAudioSource":
@@ -115,6 +130,116 @@ class MockAudioSource(AudioSource):
         t = np.linspace(0.0, duration_s, int(sample_rate * duration_s), endpoint=False)
         wave = (amplitude * np.sin(2.0 * np.pi * freq_hz * t)).astype(np.int16)
         return cls(audio=wave)
+
+
+class MicrophoneAudioSource(AudioSource):
+    """Live microphone audio capture using sounddevice.
+
+    Streams 16 kHz mono int16 audio from the default or specified input device.
+    Includes thread-safe buffering, non-blocking reads with timeouts, and
+    buffer flushing for playback-aware echo suppression.
+    """
+
+    def __init__(self, sample_rate: int = 16000, device: Optional[int | str] = None,
+                 blocksize: int = 512, queue_maxsize: int = 300,
+                 read_timeout_s: float = 0.5) -> None:
+        self._sample_rate = sample_rate
+        self._device = device
+        self._blocksize = blocksize
+        self._queue_maxsize = queue_maxsize
+        self._read_timeout_s = read_timeout_s
+        self._queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=queue_maxsize)
+        self._residual = np.array([], dtype=np.int16)
+        self._stream = None
+        self._overflow_count = 0
+
+    def _audio_callback(self, indata, frames, time_info, status):
+        if status:
+            logger.debug("Microphone status flag: %s", status)
+        # Convert channel 0 to int16 mono
+        raw = indata[:, 0]
+        if raw.dtype == np.float32:
+            chunk = (np.clip(raw, -1.0, 1.0) * 32767.0).astype(np.int16)
+        else:
+            chunk = np.asarray(raw, dtype=np.int16)
+
+        try:
+            self._queue.put_nowait(chunk)
+        except queue.Full:
+            self._overflow_count += 1
+            # Drop oldest frame to keep latency real-time
+            try:
+                self._queue.get_nowait()
+                self._queue.put_nowait(chunk)
+            except Exception:
+                pass
+
+    def __enter__(self) -> "MicrophoneAudioSource":
+        try:
+            import sounddevice as sd
+        except ImportError as exc:
+            raise RuntimeError("sounddevice is not installed. Run: pip install sounddevice") from exc
+
+        self.flush()
+        try:
+            self._stream = sd.InputStream(
+                samplerate=self._sample_rate,
+                channels=1,
+                dtype="int16",
+                device=self._device,
+                blocksize=self._blocksize,
+                callback=self._audio_callback,
+            )
+            self._stream.start()
+            logger.info("MicrophoneAudioSource: stream started @ %d Hz (device=%s)", self._sample_rate, self._device)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to start microphone audio stream: {exc}") from exc
+        return self
+
+    def __exit__(self, *args) -> None:
+        if self._stream is not None:
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception as exc:
+                logger.debug("Error closing microphone stream: %s", exc)
+            self._stream = None
+        self.flush()
+
+    def read_frames(self, num_frames: int) -> np.ndarray:
+        """Read exactly num_frames samples, assembling from queue chunks."""
+        collected = [self._residual] if len(self._residual) > 0 else []
+        total = len(self._residual)
+        self._residual = np.array([], dtype=np.int16)
+
+        deadline = time.monotonic() + self._read_timeout_s
+        while total < num_frames and time.monotonic() < deadline:
+            try:
+                chunk = self._queue.get(timeout=0.05)
+                collected.append(chunk)
+                total += len(chunk)
+            except queue.Empty:
+                continue
+
+        if not collected:
+            return np.array([], dtype=np.int16)
+
+        full = np.concatenate(collected)
+        if len(full) >= num_frames:
+            ret = full[:num_frames]
+            self._residual = full[num_frames:]
+            return ret
+        else:
+            return full
+
+    def flush(self) -> None:
+        """Flush any pending buffered audio (e.g. for echo suppression)."""
+        self._residual = np.array([], dtype=np.int16)
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
 
 
 # ---------------------------------------------------------------------------

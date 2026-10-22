@@ -10,6 +10,42 @@ wake_word:
   score_threshold: 0.6
   # Cooldown in ms between repeated wake-word triggers.
   cooldown_ms: 2000
+  # Pre-roll audio buffer in ms to retain beginning of command after wake word
+  pre_roll_buffer_ms: 800
+  # Eight supported LUMI wake phrases
+  phrases:
+    - phrase: "Hey LUMI"
+      model_filename: "hey_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "Hello LUMI"
+      model_filename: "hello_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "Hi LUMI"
+      model_filename: "hi_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "Wake up, LUMI"
+      model_filename: "wake_up_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "Let's play, LUMI"
+      model_filename: "lets_play_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "Are you there, LUMI?"
+      model_filename: "are_you_there_lumi.onnx"
+      threshold: 0.6
+      enabled: true
+    - phrase: "LUMI!"
+      model_filename: "lumi.onnx"
+      threshold: 0.65
+      enabled: true
+    - phrase: "Good morning, LUMI"
+      model_filename: "good_morning_lumi.onnx"
+      threshold: 0.6
+      enabled: true
 
 vad:
   # Silero VAD speech probability threshold (0.0–1.0).
@@ -54,3 +90,49 @@ pipeline:
   retain_audio_for_debug: false
   # Retain transcripts for debugging (privacy: default False).
   retain_transcripts_for_debug: false
+
+hardware:
+  board: "ESP32 DevKit V1 / ESP32-WROOM-32"
+
+  keypad:
+    rows: [14, 27, 16, 12]
+    columns: [35, 13, 15]
+    debounce_ms: 20
+    default_mode: "shortcut"  # "shortcut" (1=Story, 2=Learn, etc.) or "numeric" (0-9 input)
+
+  led:
+    green_gpio: 32
+    active_high: true
+
+  i2s:
+    bclk_gpio: 26
+    ws_lrclk_gpio: 25
+    mic_data_in_gpio: 34       # INMP441 SD (input only, GPI)
+    amp_data_out_gpio: 33      # MAX98357A DIN
+    sample_rate: 16000
+    bits_per_sample: 32        # 32-bit slot for full-duplex I2S0 clock compatibility
+    full_duplex: true
+
+  spi:
+    sck_gpio: 18
+    mosi_gpio: 23
+    miso_gpio: 19
+    sd_cs_gpio: 17
+    tft_cs_gpio: 5
+
+  i2c:
+    sda_gpio: 21
+    scl_gpio: 22
+    frequency_hz: 100000       # Standard 100 kHz for DS3231 RTC
+
+  tft:
+    cs_gpio: 5
+    dc_gpio: 2                 # Strapping pin GPIO 2 caution
+    reset_gpio: 4
+    header: "main_14pin"       # Main 14-pin header only. Do NOT use aux 4-pin header.
+    miso_troubleshoot_note: "Disconnect TFT MISO if SPI contention with SD card occurs"
+
+  sd_card:
+    cs_gpio: 17
+    bus: "spi"
+    power_voltage: "check_breakout" # 5V for breakouts with 3.3V LDO regulator; 3.3V for raw

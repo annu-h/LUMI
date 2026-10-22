@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMI — Voice Modules Testing Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-branding">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </div>
+        <div>
+          <div class="header-title-row">
+            <h1>LUMI Voice Lab</h1>
+            <span class="env-tag">Local Developer Testbed</span>
+          </div>
+          <p class="subtitle">Hardware-independent, offline test harness for LUMI voice components</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnClearResults" class="btn btn-secondary" title="Clear displayed test results only">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          Clear Results
+        </button>
+        <button id="btnRefreshStatus" class="btn btn-outline" title="Refresh environment and models status">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          Refresh Status
+        </button>
+      </div>
+    </header>
+
+    <!-- Environment Status Bar -->
+    <section class="status-banner">
+      <div class="status-item">
+        <span class="status-label">Runtime:</span>
+        <span id="statRuntime" class="status-chip chip-neutral">Python ...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Faster-Whisper:</span>
+        <span id="statSTT" class="status-chip chip-success">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">base.en Model:</span>
+        <span id="statSTTModel" class="status-chip chip-success">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Silero VAD:</span>
+        <span id="statVAD" class="status-chip chip-blocked">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">openWakeWord:</span>
+        <span id="statWW" class="status-chip chip-blocked">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Piper TTS:</span>
+        <span id="statTTS" class="status-chip chip-blocked">Checking...</span>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active highlight-primary" data-tab="tab-chat">🎙️ Live Voice Interaction</button>
+      <button class="nav-tab highlight" data-tab="tab-pipeline">Panel E: End-to-End Test</button>
+      <button class="nav-tab" data-tab="tab-stt">Panel C: Faster-Whisper STT</button>
+      <button class="nav-tab" data-tab="tab-vad">Panel A: Silero VAD</button>
+      <button class="nav-tab" data-tab="tab-wakeword">Panel B: Wake-Word</button>
+      <button class="nav-tab" data-tab="tab-tts">Panel D: Piper TTS</button>
+      <button class="nav-tab" data-tab="tab-overview">System Inventory</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- ============================================================== -->
+      <!-- TAB: Live Voice Interaction (Primary Interactive Loop) -->
+      <!-- ============================================================== -->
+      <section id="tab-chat" class="tab-panel active">
+        <div class="card chat-main-card">
+          <div class="card-header-flex">
+            <div>
+              <h2>🎙️ Interactive Voice Chat with LUMI</h2>
+              <p class="description">
+                Speak directly into your microphone. Faster-Whisper transcribes your voice, LUMI interprets your intent, queries educational content, and responds dynamically.
+              </p>
+            </div>
+            <div class="header-badges">
+              <span class="badge badge-real">Real STT (base.en)</span>
+              <span class="badge badge-accent">Live Mic Input</span>
+            </div>
+          </div>
+
+          <!-- Live Recording Station -->
+          <div class="recording-station">
+            <div class="mic-button-col">
+              <button id="btnToggleListening" class="btn btn-mic btn-mic-start" title="Click to start speaking">
+                <div class="mic-icon-wrapper">
+                  <svg class="mic-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                  </svg>
+                </div>
+                <span id="micButtonText" class="mic-button-label">Start Listening</span>
+              </button>
+              <div class="explicit-mic-controls">
+                <button id="btnStartListening" class="btn btn-xs btn-primary" title="Start microphone capture">▶ Start Listening</button>
+                <button id="btnStopListening" class="btn btn-xs btn-secondary" disabled title="Stop recording and transcribe">⏹ Stop Listening</button>
+              </div>
+              <div id="recordingTimerBadge" class="timer-badge hidden">
+                <span class="pulsing-dot"></span>
+                <span id="recordingTimerText">00:00</span>
+              </div>
+            </div>
+
+            <div class="mic-visualizer-col">
+              <div class="visualizer-header">
+                <span id="micStatusLabel" class="visualizer-status">Microphone Idle — Click Start Listening to speak</span>
+                <span id="micDbLevel" class="meter-db">0 dB</span>
+              </div>
+              <div class="meter-bar-container">
+                <div id="micVolumeBar" class="meter-bar"></div>
+              </div>
+              <div class="quick-options-row">
+                <label class="checkbox-label" title="When unchecked, speaks immediately to LUMI without requiring 'Hey LUMI' first">
+                  <input type="checkbox" id="chkRequireWakeWord">
+                  <span>Require 'Hey LUMI' Wake Word</span>
+                </label>
+                <label class="checkbox-label" title="Enable speech audio playback for LUMI's response">
+                  <input type="checkbox" id="chkEnableTTS" checked>
+                  <span>Play Voice Response</span>
+                </label>
+                <label class="checkbox-label" title="Continuously listen for wake word, answer, and resume listening automatically without re-clicking">
+                  <input type="checkbox" id="chkContinuousLoop">
+                  <span>Continuous Wake-Up Loop</span>
+                </label>
+              </div>
+
+              <!-- Wake-Word State Machine Tracker -->
+              <div class="wake-tracker-box">
+                <div class="wake-tracker-header">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="color: var(--text-secondary); font-weight: 600;">State Machine:</span>
+                    <span id="wakeStateLabel" style="color: var(--accent-cyan); font-weight: 700;">IDLE_LISTENING</span>
+                  </div>
+                  <div id="wakeDetectorBadgeContainer">
+                    <span id="wakeDetectorBadge" class="wake-detector-badge wake-badge-fallback">Fallback: hey_jarvis (Hey LUMI model absent)</span>
+                  </div>
+                </div>
+                <div class="wake-state-steps">
+                  <div id="step-IDLE_LISTENING" class="wake-step active">1. IDLE_LISTENING</div>
+                  <div id="step-WAKE_DETECTED" class="wake-step">2. WAKE_DETECTED</div>
+                  <div id="step-CAPTURING_COMMAND" class="wake-step">3. CAPTURING_COMMAND</div>
+                  <div id="step-PROCESSING" class="wake-step">4. PROCESSING</div>
+                  <div id="step-SPEAKING" class="wake-step">5. SPEAKING</div>
+                  <div id="step-RETURN_TO_LISTENING" class="wake-step">6. RETURN_TO_LISTENING</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prompt Suggestions -->
+          <div class="suggestions-bar">
+            <span class="suggestions-label">Try speaking:</span>
+            <button class="chip-prompt" data-text="What is the letter A?">"What is the letter A?"</button>
+            <button class="chip-prompt" data-text="Hey LUMI, tell me about elephants.">"Tell me about elephants"</button>
+            <button class="chip-prompt" data-text="Can you count from one to ten?">"Count from one to ten"</button>
+            <button class="chip-prompt" data-text="What color is the sky?">"What color is the sky?"</button>
+            <button class="chip-prompt" data-text="Tell me a story.">"Tell me a story"</button>
+            <button class="chip-prompt" data-text="Let's learn about animals.">"Learn about animals"</button>
+          </div>
+
+          <!-- Permission Error Notice Banner -->
+          <div id="micPermissionAlert" class="callout callout-error hidden">
+            <h4>Microphone Access Notice</h4>
+            <p id="micPermissionMsg">Permission denied or no microphone found. Please allow microphone permissions or use typed input below.</p>
+          </div>
+
+          <!-- Conversation Feed -->
+          <div class="conversation-feed-card">
+            <div class="feed-header">
+              <h3>Live Conversation</h3>
+              <div class="feed-actions">
+                <span id="turnCounter" class="turn-count">0 turns</span>
+                <button id="btnClearChat" class="btn btn-xs btn-outline">Clear Chat</button>
+              </div>
+            </div>
+            
+            <div id="conversationFeed" class="conversation-feed">
+              <div class="chat-message chat-lumi welcome-message">
+                <div class="chat-avatar">🤖</div>
+                <div class="chat-bubble">
+                  <div class="chat-sender">LUMI</div>
+                  <div class="chat-text">
+                    Hello! I'm LUMI, your learning friend. Click <strong>Start Listening</strong> and speak into your microphone, or ask me anything using the text box below!
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Typed Input Fallback Bar -->
+            <div class="typed-input-bar">
+              <input type="text" id="chatTypedInput" class="form-control" placeholder="Ask LUMI anything or test intent (e.g. 'What is the letter A?', 'tell me about elephants')...">
+              <button id="btnSendText" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Text
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Overview -->
+      <!-- ============================================================== -->
+      <section id="tab-overview" class="tab-panel">
+        <div class="card">
+          <h2>Voice Lab Diagnostics & System Inventory</h2>
+          <p class="description">
+            This local test harness isolates each voice stage without modifying LUMI’s production application or configuration.
+            Test individual components with real models or verified mock fallbacks.
+          </p>
+
+          <div class="inventory-grid">
+            <div class="inventory-card">
+              <div class="inv-header">
+                <h3>Speech-to-Text (STT)</h3>
+                <span class="badge badge-real">Real Model Ready</span>
+              </div>
+              <ul class="inv-list">
+                <li><strong>Backend:</strong> Faster-Whisper (CTranslate2)</li>
+                <li><strong>Default Model:</strong> <code>base.en</code> (148 MB CTranslate2)</li>
+                <li><strong>Status:</strong> Cached locally in <code>~/.cache/huggingface/hub</code></li>
+                <li><strong>Quantization:</strong> <code>int8</code> on CPU</li>
+              </ul>
+            </div>
+
+            <div class="inventory-card">
+              <div class="inv-header">
+                <h3>Voice Activity Detection (VAD)</h3>
+                <span class="badge badge-mock">Mock Fallback Ready</span>
+              </div>
+              <ul class="inv-list">
+                <li><strong>Target:</strong> Silero VAD via PyTorch</li>
+                <li><strong>PyTorch:</strong> <span class="text-blocked">Not installed in Python 3.13 env</span></li>
+                <li><strong>Status:</strong> Native test will report BLOCKED; verified MockVAD fallback is available.</li>
+              </ul>
+            </div>
+
+            <div class="inventory-card">
+              <div class="inv-header">
+                <h3>Wake-Word Detection</h3>
+                <span class="badge badge-blocked">Blocked — Model Missing</span>
+              </div>
+              <ul class="inv-list">
+                <li><strong>Expected Model:</strong> <code>models/wake_words/hey_lumi.onnx</code></li>
+                <li><strong>Model Status:</strong> <span class="text-blocked">Absent (Never fabricated)</span></li>
+                <li><strong>openWakeWord lib:</strong> <span class="text-blocked">Not installed</span></li>
+                <li><strong>Status:</strong> Test reports BLOCKED — MODEL MISSING; Mock detector testable.</li>
+              </ul>
+            </div>
+
+            <div class="inventory-card">
+              <div class="inv-header">
+                <h3>Text-to-Speech (TTS)</h3>
+                <span class="badge badge-mock">Mock Fallback Ready</span>
+              </div>
+              <ul class="inv-list">
+                <li><strong>Target:</strong> Piper TTS (ONNX)</li>
+                <li><strong>Voice Model:</strong> <code>models/tts/en_US-lessac-medium.onnx</code> (Absent)</li>
+                <li><strong>piper-tts lib:</strong> <span class="text-blocked">Not installed</span></li>
+                <li><strong>Status:</strong> MockTTS generates 22.05 kHz WAV audio for playback verification.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout callout-info mt-4">
+            <h4>Quick Verification Guide</h4>
+            <p>
+              1. Run <strong>Panel C (Faster-Whisper STT)</strong> with a sample JIBO child speech recording to test real CTranslate2 speech recognition.<br>
+              2. Run <strong>Panel E (End-to-End Test)</strong> to observe the complete multi-stage pipeline flow: Audio &rarr; VAD &rarr; Wake Word &rarr; STT &rarr; Intent Routing &rarr; TTS.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Panel A - Silero VAD -->
+      <!-- ============================================================== -->
+      <section id="tab-vad" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Panel A: Silero Voice Activity Detection (VAD)</h2>
+              <p class="description">Detect speech boundaries, trim silence, and compute speech ratios.</p>
+            </div>
+            <span id="badgeVADMode" class="badge badge-neutral">Standby</span>
+          </div>
+
+          <!-- Audio Input Section -->
+          <div class="section-box">
+            <h3>1. Select Input Audio</h3>
+            <div class="input-grid">
+              <div class="form-group">
+                <label for="vadAudioSource">Audio Source:</label>
+                <select id="vadAudioSource" class="form-control">
+                  <option value="synthetic_tone">Synthetic 440 Hz Sine Tone (1.0s - Speech Simulation)</option>
+                  <option value="synthetic_silence">Synthetic Silence (2.0s - No Speech)</option>
+                  <optgroup id="vadSampleOptGroup" label="JIBO Kids Corpus Recordings">
+                    <!-- Populated dynamically -->
+                  </optgroup>
+                  <option value="upload">Upload Local WAV File...</option>
+                </select>
+              </div>
+
+              <div id="vadUploadGroup" class="form-group hidden">
+                <label for="vadFileInput">Choose .WAV file:</label>
+                <input type="file" id="vadFileInput" class="form-control" accept=".wav">
+              </div>
+            </div>
+
+            <!-- Audio Preview Player -->
+            <div class="audio-preview-row">
+              <span class="preview-label">Audio Preview:</span>
+              <audio id="vadAudioPreview" controls class="mini-player"></audio>
+              <span id="vadAudioMeta" class="audio-meta"></span>
+            </div>
+          </div>
+
+          <!-- VAD Parameters -->
+          <div class="section-box">
+            <h3>2. Configuration Parameters</h3>
+            <div class="params-grid">
+              <div class="form-group">
+                <label for="vadThreshold">Speech Threshold (0.0 - 1.0):</label>
+                <input type="number" id="vadThreshold" class="form-control" min="0.0" max="1.0" step="0.05" value="0.5">
+                <span class="hint">Default: 0.5</span>
+              </div>
+              <div class="form-group">
+                <label for="vadMinSilence">Min Silence Duration (ms):</label>
+                <input type="number" id="vadMinSilence" class="form-control" min="100" max="3000" step="50" value="700">
+                <span class="hint">Default: 700 ms</span>
+              </div>
+              <div class="form-group">
+                <label for="vadModeSelect">Execution Mode:</label>
+                <select id="vadModeSelect" class="form-control">
+                  <option value="native">Native Silero VAD (Reports BLOCKED if torch missing)</option>
+                  <option value="mock">Verified MockVAD Fallback</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-row">
+            <button id="btnRunVAD" class="btn btn-primary">
+              <span class="spinner hidden"></span>
+              Run VAD Detection
+            </button>
+          </div>
+
+          <!-- Results Output -->
+          <div id="vadResultsCard" class="results-container hidden">
+            <h3>Detection Results</h3>
+            <div class="metrics-row">
+              <div class="metric-box">
+                <span class="metric-title">Speech Detected</span>
+                <span id="vadResSpeech" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Speech Ratio</span>
+                <span id="vadResRatio" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Audio Duration</span>
+                <span id="vadResDur" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Latency</span>
+                <span id="vadResLatency" class="metric-value">—</span>
+              </div>
+            </div>
+
+            <div id="vadRegionsBox" class="mt-3">
+              <h4>Speech Regions</h4>
+              <div id="vadRegionsList" class="code-block"></div>
+            </div>
+
+            <div id="vadRawOutput" class="mt-3">
+              <h4>Raw Response Log</h4>
+              <pre id="vadRawJson" class="json-viewer"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Panel B - Wake-Word Detection -->
+      <!-- ============================================================== -->
+      <section id="tab-wakeword" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Panel B: Wake-Word Detection (openWakeWord)</h2>
+              <p class="description">Frame-by-frame wake-word scoring, threshold comparison, and cooldown verification.</p>
+            </div>
+            <span id="badgeWWMode" class="badge badge-neutral">Standby</span>
+          </div>
+
+          <!-- Model Status Notice -->
+          <div class="model-status-card">
+            <div class="model-status-item">
+              <strong>Target Model:</strong> <code>models/wake_words/hey_lumi.onnx</code>
+            </div>
+            <div class="model-status-item">
+              <strong>Model File Status:</strong> <span id="wwModelStatusText" class="text-blocked">Checking...</span>
+            </div>
+            <div class="model-status-item">
+              <strong>Library Status:</strong> <span id="wwLibStatusText" class="text-blocked">Checking...</span>
+            </div>
+          </div>
+
+          <!-- Input Selection -->
+          <div class="section-box">
+            <h3>1. Select Input Audio</h3>
+            <div class="input-grid">
+              <div class="form-group">
+                <label for="wwAudioSource">Audio Source:</label>
+                <select id="wwAudioSource" class="form-control">
+                  <option value="synthetic_tone">Synthetic 440 Hz Sine Tone (1.0s)</option>
+                  <option value="synthetic_silence">Synthetic Silence (2.0s)</option>
+                  <optgroup id="wwSampleOptGroup" label="JIBO Kids Corpus Recordings"></optgroup>
+                  <option value="upload">Upload Local WAV File...</option>
+                </select>
+              </div>
+              <div id="wwUploadGroup" class="form-group hidden">
+                <label for="wwFileInput">Choose .WAV file:</label>
+                <input type="file" id="wwFileInput" class="form-control" accept=".wav">
+              </div>
+            </div>
+            <div class="audio-preview-row">
+              <span class="preview-label">Audio Preview:</span>
+              <audio id="wwAudioPreview" controls class="mini-player"></audio>
+              <span id="wwAudioMeta" class="audio-meta"></span>
+            </div>
+          </div>
+
+          <!-- Wake-word Parameters -->
+          <div class="section-box">
+            <h3>2. Detection Parameters</h3>
+            <div class="params-grid">
+              <div class="form-group">
+                <label for="wwThreshold">Score Threshold (0.0 - 1.0):</label>
+                <input type="number" id="wwThreshold" class="form-control" min="0.1" max="1.0" step="0.05" value="0.6">
+                <span class="hint">Default: 0.6</span>
+              </div>
+              <div class="form-group">
+                <label for="wwCooldown">Trigger Cooldown (ms):</label>
+                <input type="number" id="wwCooldown" class="form-control" min="500" max="5000" step="250" value="2000">
+                <span class="hint">Default: 2000 ms</span>
+              </div>
+              <div class="form-group">
+                <label for="wwModeSelect">Detector Mode:</label>
+                <select id="wwModeSelect" class="form-control">
+                  <option value="native">Native openWakeWord (Reports BLOCKED — MODEL MISSING)</option>
+                  <option value="mock">Verified MockWakeWordDetector</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btnRunWW" class="btn btn-primary">
+              <span class="spinner hidden"></span>
+              Run Wake-Word Detection
+            </button>
+          </div>
+
+          <!-- Wake-word Results -->
+          <div id="wwResultsCard" class="results-container hidden">
+            <h3>Detection Results</h3>
+            <div class="metrics-row">
+              <div class="metric-box">
+                <span class="metric-title">Wake-Word Triggered</span>
+                <span id="wwResTriggered" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Frames Processed</span>
+                <span id="wwResFrames" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Events Fired</span>
+                <span id="wwResEvents" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Latency</span>
+                <span id="wwResLatency" class="metric-value">—</span>
+              </div>
+            </div>
+
+            <div id="wwEventsBox" class="mt-3">
+              <h4>Trigger Events & Scores</h4>
+              <div id="wwEventsList" class="code-block"></div>
+            </div>
+
+            <div class="mt-3">
+              <h4>Raw Response Log</h4>
+              <pre id="wwRawJson" class="json-viewer"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Panel C - Faster-Whisper STT -->
+      <!-- ============================================================== -->
+      <section id="tab-stt" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Panel C: Faster-Whisper Speech-to-Text (STT)</h2>
+              <p class="description">Offline child speech transcription using locally cached CTranslate2 weights.</p>
+            </div>
+            <span id="badgeSTTMode" class="badge badge-real">Real Model Inference</span>
+          </div>
+
+          <!-- Input Selection -->
+          <div class="section-box">
+            <h3>1. Audio Input</h3>
+            <div class="input-grid">
+              <div class="form-group">
+                <label for="sttAudioSource">Audio Source:</label>
+                <select id="sttAudioSource" class="form-control">
+                  <optgroup id="sttSampleOptGroup" label="JIBO Kids Corpus (Child Speech)"></optgroup>
+                  <option value="synthetic_tone">Synthetic Tone (1.0s)</option>
+                  <option value="synthetic_silence">Synthetic Silence (2.0s)</option>
+                  <option value="upload">Upload Local WAV File...</option>
+                </select>
+              </div>
+              <div id="sttUploadGroup" class="form-group hidden">
+                <label for="sttFileInput">Choose .WAV file:</label>
+                <input type="file" id="sttFileInput" class="form-control" accept=".wav">
+              </div>
+            </div>
+
+            <div class="audio-preview-row">
+              <span class="preview-label">Audio Preview:</span>
+              <audio id="sttAudioPreview" controls class="mini-player"></audio>
+              <span id="sttAudioMeta" class="audio-meta"></span>
+            </div>
+          </div>
+
+          <!-- STT Engine Settings -->
+          <div class="section-box">
+            <h3>2. Faster-Whisper Settings</h3>
+            <div class="params-grid">
+              <div class="form-group">
+                <label for="sttModelSelect">Model Selection:</label>
+                <select id="sttModelSelect" class="form-control">
+                  <option value="base.en" selected>base.en (Locally Cached — PASS)</option>
+                  <option value="tiny.en">tiny.en (Not Cached — Will show BLOCKED warning)</option>
+                </select>
+                <span class="hint">Downloads are blocked to follow safety rules</span>
+              </div>
+              <div class="form-group">
+                <label for="sttDeviceSelect">Device:</label>
+                <select id="sttDeviceSelect" class="form-control">
+                  <option value="cpu" selected>CPU</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sttComputeSelect">Compute Type:</label>
+                <select id="sttComputeSelect" class="form-control">
+                  <option value="int8" selected>int8 (CPU Optimized)</option>
+                  <option value="float32">float32</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="sttBeamSize">Beam Size:</label>
+                <input type="number" id="sttBeamSize" class="form-control" min="1" max="5" value="1">
+                <span class="hint">Default: 1 (Greedy search)</span>
+              </div>
+            </div>
+
+            <div class="form-group mt-3">
+              <label for="sttRefText">Reference Transcript (Optional — for WER Calculation):</label>
+              <input type="text" id="sttRefText" class="form-control" placeholder="e.g. B M U C C I">
+              <span class="hint">Automatically populated when selecting JIBO Kids sample recordings</span>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btnRunSTT" class="btn btn-primary">
+              <span class="spinner hidden"></span>
+              Transcribe Audio
+            </button>
+          </div>
+
+          <!-- STT Results -->
+          <div id="sttResultsCard" class="results-container hidden">
+            <h3>Transcription Results</h3>
+            
+            <div class="transcript-box">
+              <div class="transcript-header">
+                <span class="transcript-title">Recognized Transcript</span>
+                <button id="btnCopyTranscript" class="btn btn-xs btn-outline">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Copy Text
+                </button>
+              </div>
+              <div id="sttTranscriptText" class="transcript-content"></div>
+            </div>
+
+            <div class="metrics-row mt-3">
+              <div class="metric-box">
+                <span class="metric-title">Inference Time</span>
+                <span id="sttResLatency" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Audio Duration</span>
+                <span id="sttResDuration" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Real-Time Factor (RTF)</span>
+                <span id="sttResRTF" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Model Load Time</span>
+                <span id="sttResLoadTime" class="metric-value">—</span>
+              </div>
+            </div>
+
+            <div id="sttWERCard" class="mt-3 hidden">
+              <h4>Word Error Rate (WER) Evaluation</h4>
+              <div class="wer-box">
+                <div class="wer-score-display">
+                  <span class="wer-label">WER Score:</span>
+                  <span id="sttWERValue" class="wer-value">—</span>
+                </div>
+                <div class="wer-details">
+                  <span>Substitutions: <strong id="werSubs">0</strong></span>
+                  <span>Insertions: <strong id="werIns">0</strong></span>
+                  <span>Deletions: <strong id="werDels">0</strong></span>
+                  <span>Ref Words: <strong id="werRefWords">0</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <div id="sttSegmentsBox" class="mt-3">
+              <h4>Timestamped Segments</h4>
+              <div id="sttSegmentsList" class="code-block"></div>
+            </div>
+
+            <div class="mt-3">
+              <h4>Raw Response Log</h4>
+              <pre id="sttRawJson" class="json-viewer"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Panel D - Piper TTS -->
+      <!-- ============================================================== -->
+      <section id="tab-tts" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Panel D: Piper Text-to-Speech (TTS)</h2>
+              <p class="description">Speech synthesis interface with WAV generation and audio playback.</p>
+            </div>
+            <span id="badgeTTSMode" class="badge badge-neutral">Standby</span>
+          </div>
+
+          <!-- Model Notice -->
+          <div class="model-status-card">
+            <div class="model-status-item">
+              <strong>Voice Model:</strong> <code>models/tts/en_US-lessac-medium.onnx</code>
+            </div>
+            <div class="model-status-item">
+              <strong>Model File Status:</strong> <span id="ttsModelStatusText" class="text-blocked">Checking...</span>
+            </div>
+            <div class="model-status-item">
+              <strong>piper-tts lib:</strong> <span id="ttsLibStatusText" class="text-blocked">Checking...</span>
+            </div>
+          </div>
+
+          <!-- Text Input -->
+          <div class="section-box">
+            <h3>1. Speech Input Text</h3>
+            <div class="form-group">
+              <label for="ttsTextInput">Phrase to Synthesize:</label>
+              <textarea id="ttsTextInput" class="form-control" rows="3">Hello Alex! Are you ready to learn about animals today? A is for Apple!</textarea>
+            </div>
+            <div class="quick-phrase-row">
+              <span class="hint">Preset phrases:</span>
+              <button class="btn btn-xs btn-outline btn-phrase" data-text="Hello! Say Hey Lumi to begin.">Greeting</button>
+              <button class="btn btn-xs btn-outline btn-phrase" data-text="Once upon a time in a sunny forest, a tiny squirrel found a magical acorn!">Story</button>
+              <button class="btn btn-xs btn-outline btn-phrase" data-text="Let's count: 1, 2, 3! Can you tell me what color is the sky?">Educational</button>
+            </div>
+          </div>
+
+          <!-- Parameters -->
+          <div class="section-box">
+            <h3>2. Synthesis Configuration</h3>
+            <div class="params-grid">
+              <div class="form-group">
+                <label for="ttsLengthScale">Length Scale (Speech Rate):</label>
+                <input type="number" id="ttsLengthScale" class="form-control" min="0.5" max="2.0" step="0.05" value="1.1">
+                <span class="hint">1.1 = Slower child-friendly pace</span>
+              </div>
+              <div class="form-group">
+                <label for="ttsModeSelect">TTS Engine Mode:</label>
+                <select id="ttsModeSelect" class="form-control">
+                  <option value="native">Native Piper TTS (Reports BLOCKED — MODEL MISSING)</option>
+                  <option value="mock" selected>MockTTS (Tone WAV Audio for Playback Verification)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btnRunTTS" class="btn btn-primary">
+              <span class="spinner hidden"></span>
+              Generate Speech
+            </button>
+          </div>
+
+          <!-- TTS Results -->
+          <div id="ttsResultsCard" class="results-container hidden">
+            <h3>Synthesis Output</h3>
+
+            <div class="audio-playback-card">
+              <h4>Generated Audio Player</h4>
+              <audio id="ttsAudioPlayer" controls class="wide-player"></audio>
+              <div id="ttsAudioDetails" class="audio-meta mt-2"></div>
+            </div>
+
+            <div class="metrics-row mt-3">
+              <div class="metric-box">
+                <span class="metric-title">Synthesis Latency</span>
+                <span id="ttsResLatency" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Audio Duration</span>
+                <span id="ttsResDuration" class="metric-value">—</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">Sample Rate</span>
+                <span id="ttsResSampleRate" class="metric-value">22,050 Hz</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-title">File Size</span>
+                <span id="ttsResFileSize" class="metric-value">—</span>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <h4>Raw Response Log</h4>
+              <pre id="ttsRawJson" class="json-viewer"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- TAB: Panel E - End-to-End Pipeline -->
+      <!-- ============================================================== -->
+      <section id="tab-pipeline" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h2>Panel E: End-to-End Voice Pipeline Integration</h2>
+              <p class="description">
+                Execute the complete interaction cycle:
+                Audio &rarr; VAD &rarr; Wake Word &rarr; STT &rarr; Intent Classification &rarr; Intent Routing &rarr; TTS.
+              </p>
+            </div>
+            <span class="badge badge-accent">Interactive Pipeline</span>
+          </div>
+
+          <!-- Input Selection -->
+          <div class="section-box">
+            <h3>1. Input Utterance Audio</h3>
+            <div class="input-grid">
+              <div class="form-group">
+                <label for="pipeAudioSource">Audio Source:</label>
+                <select id="pipeAudioSource" class="form-control">
+                  <optgroup id="pipeSampleOptGroup" label="JIBO Kids Corpus"></optgroup>
+                  <option value="synthetic_tone">Synthetic Tone (Speech Simulation)</option>
+                  <option value="synthetic_silence">Synthetic Silence (Timeout / Silence Test)</option>
+                  <option value="upload">Upload Local WAV File...</option>
+                </select>
+              </div>
+              <div id="pipeUploadGroup" class="form-group hidden">
+                <label for="pipeFileInput">Choose .WAV file:</label>
+                <input type="file" id="pipeFileInput" class="form-control" accept=".wav">
+              </div>
+            </div>
+            <div class="audio-preview-row">
+              <span class="preview-label">Audio Preview:</span>
+              <audio id="pipeAudioPreview" controls class="mini-player"></audio>
+              <span id="pipeAudioMeta" class="audio-meta"></span>
+            </div>
+          </div>
+
+          <!-- Pipeline Controls -->
+          <div class="section-box">
+            <h3>2. Pipeline Settings</h3>
+            <div class="params-grid">
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="pipeAllowMocks" checked>
+                  <span>Allow verified Mock Fallbacks for missing stages</span>
+                </label>
+                <span class="hint">Enables running the full cycle when OWW / Piper models are missing</span>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="pipeSkipWakeWord">
+                  <span>Bypass Wake-Word Detection (Direct Utterance)</span>
+                </label>
+                <span class="hint">Directly process audio without requiring 'Hey Lumi' trigger</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btnRunPipeline" class="btn btn-primary btn-lg">
+              <span class="spinner hidden"></span>
+              Run End-to-End Test
+            </button>
+          </div>
+
+          <!-- Pipeline Results -->
+          <div id="pipeResultsCard" class="results-container hidden">
+            <div class="pipeline-summary-banner">
+              <div>
+                <h3>Pipeline Execution Flow</h3>
+                <p id="pipeOverallStatus">Status: Completed</p>
+              </div>
+              <div class="pipe-total-time">
+                <span>Total Cycle Time:</span>
+                <strong id="pipeTotalTime">—</strong>
+              </div>
+            </div>
+
+            <!-- Stage Cards -->
+            <div id="pipeStagesContainer" class="pipeline-stages-list mt-4">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Final Response Card -->
+            <div class="final-response-box mt-4">
+              <h3>Final System Response</h3>
+              <div class="response-content">
+                <p id="pipeResponseText" class="response-quote">"..."</p>
+                <div class="response-audio mt-2">
+                  <span class="preview-label">Response Audio:</span>
+                  <audio id="pipeResponseAudio" controls class="mini-player"></audio>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <h4>Raw Response Log</h4>
+              <pre id="pipeRawJson" class="json-viewer"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <p>LUMI Voice Modules Testing Lab &bull; Temporary developer tool located at <code>tools/voice_lab/</code> &bull; Safe local execution on 127.0.0.1</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -140,13 +140,16 @@ class PiperTTS(TTS):
                 f"Failed to load Piper voice: {exc}"
             ) from exc
 
-    def _cache_path(self, text: str) -> Path:
-        h = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    def _cache_path(self, text: str, length_scale: Optional[float] = None) -> Path:
+        ls = length_scale if length_scale is not None else self._length_scale
+        cache_key = f"{text}_ls_{ls:.2f}"
+        h = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()[:16]
         return self._output_dir / f"{h}.wav"
 
-    def synthesize(self, text: str) -> TTSResult:
+    def synthesize(self, text: str, length_scale: Optional[float] = None) -> TTSResult:
         t0 = time.monotonic()
-        cache_path = self._cache_path(text)
+        active_ls = length_scale if length_scale is not None else self._length_scale
+        cache_path = self._cache_path(text, active_ls)
 
         # Return cached WAV if it exists
         if cache_path.exists():
@@ -179,19 +182,31 @@ class PiperTTS(TTS):
             )
 
         try:
-            # Collect raw audio bytes from Piper
-            audio_bytes = b""
-            synthesize_args = {"length_scale": self._length_scale}
-            for audio_chunk in self._voice.synthesize_stream_raw(
-                text, **synthesize_args
-            ):
-                audio_bytes += audio_chunk
-
-            audio = np.frombuffer(audio_bytes, dtype=np.int16)
+            # Collect audio samples from Piper (compatible with piper-tts 1.8+ and legacy versions)
+            if hasattr(self._voice, "synthesize_stream_raw"):
+                audio_bytes = b""
+                synthesize_args = {"length_scale": active_ls}
+                for audio_chunk in self._voice.synthesize_stream_raw(
+                    text, **synthesize_args
+                ):
+                    audio_bytes += audio_chunk
+                audio = np.frombuffer(audio_bytes, dtype=np.int16)
+            else:
+                synth_kwargs = {}
+                try:
+                    from piper.config import SynthesisConfig
+                    synth_kwargs["syn_config"] = SynthesisConfig(length_scale=active_ls)
+                except Exception:
+                    pass
+                chunks = list(self._voice.synthesize(text, **synth_kwargs))
+                if chunks:
+                    audio = np.concatenate([c.audio_int16_array for c in chunks])
+                else:
+                    audio = np.array([], dtype=np.int16)
 
             # Write to cache
             _write_wav(cache_path, audio, self.SAMPLE_RATE)
-            logger.debug("Piper: synthesized %d samples for '%s'", len(audio), text)
+            logger.debug("Piper: synthesized %d samples for '%s' (length_scale=%.2f)", len(audio), text, active_ls)
 
         except Exception as exc:
             logger.exception("Piper synthesis failed: %s", exc)

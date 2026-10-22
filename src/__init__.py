@@ -1,5 +1,5 @@
 from .config import LumiConfig
-from .audio_source import AudioSource, FileAudioSource, MockAudioSource
+from .audio_source import AudioSource, FileAudioSource, MockAudioSource, MicrophoneAudioSource
 from .vad import VAD, MockVAD, SileroVAD
 from .wake_word import WakeWordDetector, MockWakeWordDetector, OpenWakeWordDetector, make_wake_word_detector
 from .stt import STT, MockSTT, FasterWhisperSTT, make_stt

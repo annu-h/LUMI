@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMI Voice Lab — Interactive Voice Companion & Hardware Simulator</title>
+  <!-- 100% Offline Font Stack: Zero external requests or CDNs -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="companion-body">
+  <div class="companion-app" id="lumiCompanionApp">
+
+    <!-- Top Global Header Bar -->
+    <header class="companion-header">
+      <div class="brand-group">
+        <div class="lumi-orb-icon" aria-hidden="true">
+          <span class="orb-sparkle">✨</span>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-name">LUMI</h1>
+            <span class="age-badge">Ages 0–6</span>
+            <span class="chassis-sim-badge">Hardware Simulator &amp; Voice Agent</span>
+          </div>
+          <p class="brand-tagline">Interactive Voice Companion for Young Learners &bull; ESP32 Hardware Preview</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="offline-pill" id="offlinePill" title="All speech recognition (Faster-Whisper) and speech synthesis (Piper TTS) run 100% offline on your device">
+          <span class="status-dot pulse-emerald"></span>
+          <span class="offline-text">100% Offline &bull; Safe &amp; Private</span>
+        </div>
+        <button id="btnSoundToggle" class="btn-sound-head active" title="Toggle voice audio output">
+          <span id="soundToggleIcon">🔊</span>
+          <span id="soundToggleText">Voice On</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Stage (Two Columns: Left = Physical Chassis Mockup, Right = Companion & Activities) -->
+    <main class="main-workspace">
+
+      <!-- LEFT COLUMN: Physical Hardware Chassis & 320x240 ILI9341 Display -->
+      <section class="device-column" aria-label="LUMI Physical Chassis Simulation">
+        <div class="device-chassis" id="deviceChassis">
+          
+          <!-- Device Top Shell -->
+          <div class="device-header">
+            <div class="device-logo">
+              <span class="star-icon">⭐</span>
+              <span class="logo-text">LUMI Companion</span>
+            </div>
+            <div class="device-hardware-info">
+              <div class="mic-hole" title="Simulation: INMP441 MEMS Microphone (GPIO 34)"></div>
+              <div class="status-led led-green" title="Simulation: Power LED Active (CR2032/3.3V)"></div>
+            </div>
+          </div>
+
+          <!-- 320x240 TFT LCD Bezel -->
+          <div class="screen-bezel">
+            <div class="screen-glass">
+              <canvas id="tftCanvas" width="320" height="240" role="img" aria-label="Simulated ILI9341 320x240 LCD Screen"></canvas>
+              <div class="crt-scanlines" aria-hidden="true"></div>
+              <div class="glass-glare" aria-hidden="true"></div>
+            </div>
+            <div class="bezel-label">ILI9341 SPI 320&times;240 COLOR DISPLAY</div>
+          </div>
+
+          <!-- Mid Section: Speaker Grille & Expression Badge -->
+          <div class="device-mid">
+            <div class="speaker-grille" id="speakerGrille" title="Simulation: MAX98357A I2S Amplifier">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="expression-badge" id="faceExpressionLabel">FACE: IDLE</div>
+          </div>
+
+          <!-- 12-Button Matrix Keypad (Hardware mapping: GPIO 14,27,16,12 x 35,13,15) -->
+          <div class="keypad-container">
+            <div class="keypad-title">12-BUTTON NAVIGATION MATRIX</div>
+            <div class="keypad-grid" role="group" aria-label="12-Button Matrix Keypad">
+              <!-- Row 0: 1, 2, 3 -->
+              <button class="key-btn" data-key="NUM_1" data-row="0" data-col="0" id="key-1" title="Key 1: Learn Mode">
+                <span class="key-num">1</span>
+                <span class="key-sub">LEARN</span>
+              </button>
+              <button class="key-btn" data-key="NUM_2" data-row="0" data-col="1" id="key-2" title="Key 2: Story Time">
+                <span class="key-num">2</span>
+                <span class="key-sub">STORY</span>
+              </button>
+              <button class="key-btn" data-key="NUM_3" data-row="0" data-col="2" id="key-3" title="Key 3: Quiz Challenge">
+                <span class="key-num">3</span>
+                <span class="key-sub">QUIZ</span>
+              </button>
+
+              <!-- Row 1: 4, 5, 6 -->
+              <button class="key-btn" data-key="NUM_4" data-row="1" data-col="0" id="key-4">
+                <span class="key-num">4</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_5" data-row="1" data-col="1" id="key-5">
+                <span class="key-num">5</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_6" data-row="1" data-col="2" id="key-6">
+                <span class="key-num">6</span>
+                <span class="key-sub"></span>
+              </button>
+
+              <!-- Row 2: 7, 8, 9 -->
+              <button class="key-btn" data-key="NUM_7" data-row="2" data-col="0" id="key-7">
+                <span class="key-num">7</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_8" data-row="2" data-col="1" id="key-8">
+                <span class="key-num">8</span>
+                <span class="key-sub"></span>
+              </button>
+              <button class="key-btn" data-key="NUM_9" data-row="2" data-col="2" id="key-9" title="Key 9: Learning Stars">
+                <span class="key-num">9</span>
+                <span class="key-sub">STARS</span>
+              </button>
+
+              <!-- Row 3: BACK, 0, FORWARD -->
+              <button class="key-btn key-nav key-back" data-key="BTN_BACKWARD" data-row="3" data-col="0" id="key-back" title="Back: Return Home / Settings">
+                <span class="key-num">&#9664;</span>
+                <span class="key-sub">BACK</span>
+              </button>
+              <button class="key-btn" data-key="NUM_0" data-row="3" data-col="1" id="key-0" title="Key 0: Home / Next Card">
+                <span class="key-num">0</span>
+                <span class="key-sub">HOME / NEXT</span>
+              </button>
+              <button class="key-btn key-nav key-fwd" data-key="BTN_FORWARD" data-row="3" data-col="2" id="key-fwd" title="Forward: Next Card / Enter Learn">
+                <span class="key-num">&#9654;</span>
+                <span class="key-sub">FORWARD</span>
+              </button>
+            </div>
+            <div class="keypad-hint">
+              Keyboard Shortcuts: <b>0&ndash;9</b>, <b>Left / Backspace</b> (Back), <b>Right / Enter</b> (Forward)
+            </div>
+          </div>
+
+          <div class="device-sim-note">
+            <span class="note-icon">&#9432;</span>
+            <span>Desktop ESP32 Firmware &amp; Keypad Simulator</span>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Interactive Companion, Voice Engine & Learning Activities -->
+      <section class="companion-column">
+
+        <!-- Top Screen & Navigation Tabs -->
+        <nav class="companion-nav-tabs" role="tablist" aria-label="LUMI Screen Navigation">
+          <button class="screen-tab-btn active" data-screen="HOME" id="tabScreenHome" role="tab" aria-selected="true">
+            <span class="tab-icon">🏠</span>
+            <span class="tab-label">Home &amp; Voice</span>
+          </button>
+          <button class="screen-tab-btn" data-screen="LEARNING" id="tabScreenLearn" role="tab" aria-selected="false">
+            <span class="tab-icon">📚</span>
+            <span class="tab-label">Learn Mode</span>
+          </button>
+          <button class="screen-tab-btn" data-screen="QUIZ" id="tabScreenQuiz" role="tab" aria-selected="false">
+            <span class="tab-icon">❓</span>
+            <span class="tab-label">Quiz</span>
+          </button>
+          <button class="screen-tab-btn" data-screen="STORY" id="tabScreenStory" role="tab" aria-selected="false">
+            <span class="tab-icon">📖</span>
+            <span class="tab-label">Story Time</span>
+          </button>
+          <button class="screen-tab-btn" data-screen="PROGRESS" id="tabScreenProgress" role="tab" aria-selected="false">
+            <span class="tab-icon">⭐</span>
+            <span class="tab-label">My Stars</span>
+          </button>
+          <button class="screen-tab-btn" data-screen="SETTINGS" id="tabScreenSettings" role="tab" aria-selected="false">
+            <span class="tab-icon">⚙️</span>
+            <span class="tab-label">Setup</span>
+          </button>
+        </nav>
+
+        <!-- Dynamic Screen Panels -->
+        <div class="screen-panels-container">
+
+          <!-- ========================================================= -->
+          <!-- PANEL 1: HOME & VOICE INTERACTION -->
+          <!-- ========================================================= -->
+          <div class="screen-panel active" id="panelHome" role="tabpanel">
+
+            <!-- LUMI Expressive Character Stage -->
+            <div class="companion-stage-card">
+              
+              <!-- Animated Character Face -->
+              <div class="lumi-character-wrapper">
+                <div class="lumi-character" id="lumiAvatar" data-state="ready">
+                  <div class="lumi-aura"></div>
+                  <div class="lumi-face">
+                    <div class="lumi-eye eye-left">
+                      <div class="pupil"></div>
+                    </div>
+                    <div class="lumi-eye eye-right">
+                      <div class="pupil"></div>
+                    </div>
+                    <div class="lumi-mouth"></div>
+                  </div>
+                  <!-- Equalizer sound waves while speaking -->
+                  <div class="soundwave-container" id="soundwaveContainer">
+                    <span class="wave-bar bar-1"></span>
+                    <span class="wave-bar bar-2"></span>
+                    <span class="wave-bar bar-3"></span>
+                    <span class="wave-bar bar-4"></span>
+                    <span class="wave-bar bar-5"></span>
+                  </div>
+                </div>
+
+                <!-- Dynamic Status Heading -->
+                <div class="companion-status-box">
+                  <h2 class="status-heading" id="companionStatusHeading">I'm ready! Tap the mic to talk with me.</h2>
+                  <p class="status-subtext" id="companionStatusSubtext">Ask about letters, animals, numbers, shapes, or bedtime stories.</p>
+                </div>
+              </div>
+
+              <!-- Big Tactile 5-State Microphone Action Area -->
+              <div class="mic-hero-section">
+                <div class="mic-button-cluster">
+                  <button id="btnHeroMic" class="hero-mic-btn state-ready" aria-label="Tap to speak with LUMI">
+                    <div class="mic-wave-ring ring-1"></div>
+                    <div class="mic-wave-ring ring-2"></div>
+                    <div class="mic-wave-ring ring-3"></div>
+                    <div class="mic-icon-circle">
+                      <!-- SVG Microphone Icon -->
+                      <svg class="icon-mic" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" x2="12" y1="19" y2="22"/>
+                      </svg>
+                      <!-- SVG Spinner Icon (Processing state) -->
+                      <svg class="icon-spinner hidden" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                      </svg>
+                      <!-- SVG Soundwave Icon (Speaking state) -->
+                      <svg class="icon-soundwave hidden" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <path d="M2 10v4"/><path d="M6 7v10"/><path d="M10 4v16"/><path d="M14 8v8"/><path d="M18 6v12"/><path d="M22 10v4"/>
+                      </svg>
+                    </div>
+                  </button>
+
+                  <!-- Recording Timer Badge -->
+                  <div id="heroTimerBadge" class="recording-pill hidden">
+                    <span class="live-dot"></span>
+                    <span id="heroTimerText">0:00</span>
+                  </div>
+
+                  <!-- Stop Listening Secondary Button -->
+                  <button id="btnStopHero" class="btn-stop-listening hidden" title="Stop listening and send your speech to LUMI">
+                    ⏹️ Stop Listening
+                  </button>
+                </div>
+              </div>
+
+              <!-- Child-Friendly Voice Controls -->
+              <div class="voice-controls-bar">
+                
+                <!-- Speech Pace Toggle (Slow vs Normal) -->
+                <div class="control-group">
+                  <span class="control-caption">Voice Speed:</span>
+                  <div class="speed-toggle-pill" role="radiogroup" aria-label="Speech speed">
+                    <button type="button" id="btnSpeedSlow" class="speed-pill-btn active" data-speed="slow" aria-checked="true" role="radio" title="Slow, articulated speech recommended for children aged 0–6">
+                      🐢 Slow (Recommended)
+                    </button>
+                    <button type="button" id="btnSpeedNormal" class="speed-pill-btn" data-speed="normal" aria-checked="false" role="radio" title="Normal adult speech speed">
+                      🐇 Normal
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Hands-Free Wake Word Toggle -->
+                <div class="control-group">
+                  <label class="handsfree-switch" title="When enabled, requires 'Hey LUMI' in your speech before responding. Note: Custom hey_lumi.onnx model is currently missing, so manual mic tap is recommended.">
+                    <input type="checkbox" id="chkHandsFreeWake">
+                    <span class="switch-track">
+                      <span class="switch-thumb"></span>
+                    </span>
+                    <span class="switch-text">👂 Hands-Free ("Hey LUMI")</span>
+                  </label>
+                </div>
+
+              </div>
+
+              <!-- Alert Banner -->
+              <div id="micAlertBanner" class="alert-banner hidden">
+                <span class="alert-icon">⚠️</span>
+                <span class="alert-message" id="micAlertMessage">Microphone permission needed to speak with LUMI.</span>
+                <button id="btnDismissAlert" class="btn-dismiss-alert">&times;</button>
+              </div>
+
+            </div>
+
+            <!-- Quick Question Prompt Bubbles -->
+            <section class="quick-prompts-section">
+              <span class="prompts-label">Try asking:</span>
+              <div class="prompts-scroll-row">
+                <button class="prompt-chip" data-prompt="What is the letter A?">
+                  <span class="chip-icon">🍎</span> What is the letter A?
+                </button>
+                <button class="prompt-chip" data-prompt="Tell me about elephants!">
+                  <span class="chip-icon">🐘</span> Tell me about elephants!
+                </button>
+                <button class="prompt-chip" data-prompt="Can you count to ten?">
+                  <span class="chip-icon">🔢</span> Let's count to 10!
+                </button>
+                <button class="prompt-chip" data-prompt="Why do stars twinkle?">
+                  <span class="chip-icon">⭐</span> Why do stars twinkle?
+                </button>
+                <button class="prompt-chip" data-prompt="Tell me about dinosaurs!">
+                  <span class="chip-icon">🦕</span> Tell me about dinosaurs!
+                </button>
+                <button class="prompt-chip" data-prompt="Sing the ABC song!">
+                  <span class="chip-icon">🎵</span> Sing the ABCs!
+                </button>
+              </div>
+            </section>
+
+            <!-- Conversation Feed & Text Input Fallback -->
+            <section class="conversation-section">
+              <div class="conversation-header-row">
+                <h3 class="conversation-title">Conversation Feed</h3>
+                <button id="btnClearChatHistory" class="btn-clear-chat" title="Clear chat messages">
+                  🧹 Clear Chat
+                </button>
+              </div>
+
+              <div class="conversation-feed" id="conversationFeed">
+                <!-- Initial Welcome Message from LUMI -->
+                <div class="chat-message chat-lumi">
+                  <div class="chat-avatar" aria-hidden="true">🤖</div>
+                  <div class="chat-bubble">
+                    <div class="chat-sender">LUMI</div>
+                    <div class="chat-text">Hello friend! I am LUMI, your voice companion. Tap the big microphone button or choose an activity above to start exploring!</div>
+                    <div class="chat-meta">
+                      <span>Friendly Greeting</span>
+                      <span>&bull;</span>
+                      <span>Ready to Learn</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Text Input Fallback Bar -->
+              <form id="chatTextForm" class="text-fallback-form">
+                <input 
+                  type="text" 
+                  id="chatTypedInput" 
+                  class="text-input-field" 
+                  placeholder="Type a question for LUMI... (or tap the mic above)" 
+                  autocomplete="off"
+                  maxlength="200"
+                >
+                <button type="submit" id="btnSendTypedText" class="btn-send-text" title="Send typed message to LUMI">
+                  <span class="send-icon">🚀</span>
+                  <span class="send-label">Send</span>
+                </button>
+              </form>
+            </section>
+
+          </div>
+
+          <!-- ========================================================= -->
+          <!-- PANEL 2: LEARN MODE (EDUCATIONAL CATALOG CAROUSEL) -->
+          <!-- ========================================================= -->
+          <div class="screen-panel" id="panelLearning" role="tabpanel">
+            <div class="activity-card">
+              <div class="activity-header">
+                <div class="activity-title-group">
+                  <h3>📚 Educational Learning Cards</h3>
+                  <span class="chip-counter" id="carouselCounter">Item 1 of 8</span>
+                </div>
+                <div class="card-category-badge" id="learningCatBadge">Animal</div>
+              </div>
+
+              <!-- Main Learning Card Display -->
+              <div class="learning-card-hero" id="learningCardHero">
+                <div class="card-visual-icon" id="learningCardIcon">🐘</div>
+                <div class="card-content-pane">
+                  <h2 class="card-item-title" id="learningCardTitle">Elephant</h2>
+                  <div class="card-item-body" id="learningCardBody">
+                    A giant gentle animal with a long trunk!<br>
+                    <strong>Sound:</strong> Pawoo!<br>
+                    <strong>Fact:</strong> Elephants wrap trunks to greet.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Learning Action Bar -->
+              <div class="activity-actions-bar">
+                <button class="btn btn-secondary" id="btnPrevItem">
+                  <span>◀</span> Previous Card
+                </button>
+                <button class="btn btn-primary" id="btnNextItem">
+                  Next Card <span>▶</span>
+                </button>
+                <button class="btn btn-accent" id="btnSpeakContent">
+                  🗣️ Read Card Aloud (Piper TTS)
+                </button>
+              </div>
+
+              <!-- Quick Topic Thumbnails -->
+              <div class="catalog-grid-section">
+                <h4 class="section-label">Browse Offline Library:</h4>
+                <div class="catalog-items-grid" id="catalogGrid">
+                  <!-- Dynamically populated from /api/educational/catalog -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================= -->
+          <!-- PANEL 3: QUIZ CHALLENGE -->
+          <!-- ========================================================= -->
+          <div class="screen-panel" id="panelQuiz" role="tabpanel">
+            <div class="activity-card quiz-card">
+              <div class="activity-header">
+                <div class="activity-title-group">
+                  <h3>❓ Quiz Challenge</h3>
+                  <span class="chip-counter" id="quizCounter">Question 1</span>
+                </div>
+                <div class="stars-earned-chip">
+                  <span id="quizScoreDisplay">Stars: 0 ⭐</span>
+                </div>
+              </div>
+
+              <div class="quiz-question-container">
+                <div class="quiz-icon">🤔</div>
+                <h2 class="quiz-question-text" id="quizQuestionText">Which animal has a long trunk?</h2>
+              </div>
+
+              <div class="quiz-options-grid">
+                <button class="quiz-option-btn opt-a" id="btnQuizOptA" data-option="1">
+                  <span class="opt-key-label">[1]</span>
+                  <span class="opt-text" id="quizOptAText">Elephant</span>
+                </button>
+                <button class="quiz-option-btn opt-b" id="btnQuizOptB" data-option="2">
+                  <span class="opt-key-label">[2]</span>
+                  <span class="opt-text" id="quizOptBText">Rabbit</span>
+                </button>
+              </div>
+
+              <!-- Quiz Feedback Banner -->
+              <div class="quiz-result-banner hidden" id="quizResultBanner">
+                <span class="result-icon" id="quizResultIcon">⭐</span>
+                <div class="result-details">
+                  <strong class="result-title" id="quizResultTitle">Great Job!</strong>
+                  <p class="result-body" id="quizResultBody">That's right! Elephants have magnificent long trunks.</p>
+                </div>
+              </div>
+
+              <div class="activity-actions-bar">
+                <button class="btn btn-secondary" id="btnRepeatQuizQuestion">
+                  🗣️ Repeat Question
+                </button>
+                <button class="btn btn-primary" id="btnNextQuiz">
+                  Next Question <span>▶</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================= -->
+          <!-- PANEL 4: STORY TIME -->
+          <!-- ========================================================= -->
+          <div class="screen-panel" id="panelStory" role="tabpanel">
+            <div class="activity-card story-card">
+              <div class="activity-header">
+                <div class="activity-title-group">
+                  <h3>📖 Bedtime &amp; Learning Stories</h3>
+                </div>
+                <span class="chip-counter" id="storyDurationTag">~2 min listen</span>
+              </div>
+
+              <div class="story-selector-row" id="storySelectorRow">
+                <!-- Dynamically populated or default story tabs -->
+                <button class="story-pill active" data-story-idx="0">🦊 The Clever Fox</button>
+                <button class="story-pill" data-story-idx="1">🐶 The Lost Puppy</button>
+                <button class="story-pill" data-story-idx="2">☁️ The Little Cloud</button>
+                <button class="story-pill" data-story-idx="3">🐿️ The Brave Squirrel</button>
+              </div>
+
+              <div class="story-reading-pane">
+                <h2 class="story-title" id="storyDisplayTitle">The Clever Fox</h2>
+                <div class="story-body" id="storyDisplayText">
+                  Once upon a time in an enchanted forest, a curious fox named Rusty found a magic glowing compass under an old oak tree. The needle didn't point north—it pointed toward friendly adventures and new animal friends!<br><br>
+                  Rusty followed the gentle glow through misty meadows, across singing brooks, until he found a little bear who needed help finding sweet honeycombs. Together, they shared a joyful afternoon of laughter, friendship, and discovery.
+                </div>
+              </div>
+
+              <div class="activity-actions-bar">
+                <button class="btn btn-accent" id="btnReadStoryAloud">
+                  📖 Read Story Aloud (Piper TTS)
+                </button>
+                <button class="btn btn-secondary" id="btnStopStoryAudio">
+                  ⏹️ Stop Reading
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================= -->
+          <!-- PANEL 5: MY LEARNING STARS (PROGRESS) -->
+          <!-- ========================================================= -->
+          <div class="screen-panel" id="panelProgress" role="tabpanel">
+            <div class="activity-card progress-card">
+              <div class="activity-header">
+                <div class="activity-title-group">
+                  <h3>⭐ My Learning Stars &amp; Achievements</h3>
+                </div>
+                <span class="session-badge">Session Progress</span>
+              </div>
+
+              <div class="progress-hero">
+                <div class="stars-trophy">🏆</div>
+                <div class="progress-stats-summary">
+                  <h2 class="stars-count-header"><span id="starsEarnedCount">3</span> Stars Collected!</h2>
+                  <p class="progress-subtext">You're doing fantastic! Keep asking questions and exploring cards.</p>
+                </div>
+              </div>
+
+              <div class="progress-bar-container">
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" id="progressBarFill" style="width: 70%;"></div>
+                </div>
+                <div class="progress-bar-labels">
+                  <span>Start</span>
+                  <span id="progressPctText">70% Completed</span>
+                  <span>Superstar! ⭐⭐⭐</span>
+                </div>
+              </div>
+
+              <div class="stats-counters-grid">
+                <div class="stat-card">
+                  <span class="stat-num" id="statQuizzesCount">8 / 10</span>
+                  <span class="stat-label">Quizzes Completed</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num" id="statStoriesCount">5</span>
+                  <span class="stat-label">Stories Listened</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num" id="statTurnsCount">12</span>
+                  <span class="stat-label">Spoken Questions</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num" id="statTopicsCount">6</span>
+                  <span class="stat-label">Topics Explored</span>
+                </div>
+              </div>
+
+              <p class="progress-note">
+                Progress is tracked locally for your current learning session. No accounts, cookies, or cloud sync required.
+              </p>
+            </div>
+          </div>
+
+          <!-- ========================================================= -->
+          <!-- PANEL 6: SETUP & SYSTEM DIAGNOSTICS -->
+          <!-- ========================================================= -->
+          <div class="screen-panel" id="panelSettings" role="tabpanel">
+            <div class="activity-card settings-card">
+              <div class="activity-header">
+                <div class="activity-title-group">
+                  <h3>⚙️ LUMI Setup &amp; Configuration</h3>
+                </div>
+                <span class="chip-counter">Offline Engine</span>
+              </div>
+
+              <div class="settings-list">
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <strong>Speech Recognition Engine</strong>
+                    <p>Faster-Whisper (Model: <code>base.en</code> &bull; CPU int8 &bull; Offline)</p>
+                  </div>
+                  <span class="badge-real">ACTIVE</span>
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <strong>Speech Synthesis Voice</strong>
+                    <p>Piper TTS (Voice: <code>en_US-lessac-medium.onnx</code> &bull; Offline)</p>
+                  </div>
+                  <span class="badge-real">ACTIVE</span>
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <strong>Wake-Word Engine &amp; Fallback</strong>
+                    <p>openWakeWord Engine (Fallback: <code>hey_jarvis</code> active for development testing &bull; Tap-to-talk mic active)</p>
+                  </div>
+                  <span class="badge-fallback">FALLBACK ACTIVE</span>
+                </div>
+
+                <!-- Dedicated Eight-Phrase Support Matrix -->
+                <div class="setting-item wake-phrases-setting-section">
+                  <div class="setting-info" style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <strong>🎙️ Supported Wake Phrases (8 Canonical Phrases)</strong>
+                      <span class="chip-counter" id="wakePhraseCountBadge">8 Phrases</span>
+                    </div>
+                    <p style="margin-bottom: 12px; color: #94a3b8; font-size: 0.8rem;">
+                      Children can activate LUMI by speaking any of these eight phrases. Individual phrases can be toggled on/off. Statuses are verified from local ONNX model assets.
+                    </p>
+
+                    <div id="wakePhrasesList" class="wake-phrases-table-wrapper">
+                      <table class="wake-phrases-table">
+                        <thead>
+                          <tr>
+                            <th style="width: 50px;">Active</th>
+                            <th>Wake Phrase</th>
+                            <th>Status</th>
+                            <th>Model Asset</th>
+                            <th>Action / Training Required</th>
+                          </tr>
+                        </thead>
+                        <tbody id="wakePhrasesTableBody">
+                          <!-- Populated dynamically via /api/wake_word/phrases -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <strong>ESP32 Hardware Simulation</strong>
+                    <p>320&times;240 ILI9341 Screen + 4&times;3 Keypad (Rows: 14,27,16,12 | Cols: 35,13,15)</p>
+                  </div>
+                  <span class="badge-sim">DESKTOP SIM</span>
+                </div>
+              </div>
+
+              <div class="settings-dev-link-box">
+                <p>Need deep model benchmarking, synthetic audio testing, or hardware pin audits?</p>
+                <a href="/dev" class="btn btn-secondary">
+                  🛠️ Open Developer Testbed &amp; Hardware Diagnostics (<code>/dev</code>)
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Friendly Footer -->
+    <footer class="companion-footer">
+      <div class="footer-privacy-note">
+        🔒 <strong>100% Offline &bull; Safe for Kids:</strong> All speech recognition (Faster-Whisper) and voice synthesis (Piper TTS) run completely on your computer. No audio or text is ever uploaded to the cloud or saved externally.
+      </div>
+      <div class="footer-dev-row">
+        <a href="/dev" class="dev-tools-link" title="Open Hardware Integration Lab, audio diagnostics, and model audits">
+          ⚙️ Developer Tools &amp; Hardware Audit (<code>/dev</code>)
+        </a>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Primary Application Script (Handles Canvas, Real Whisper/Piper APIs, Keypad & Activities) -->
+  <script src="app.js"></script>
+</body>
+</html>

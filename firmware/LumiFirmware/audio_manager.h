@@ -105,6 +105,23 @@ public:
     /** Returns the number of speaker underruns. */
     uint32_t spk_underrun_count() const { return _spk_underrun_count; }
 
+    // Diagnostic hardware verification methods
+    typedef struct {
+        uint32_t total_samples;
+        int16_t min_sample;
+        int16_t max_sample;
+        int32_t peak_to_peak;
+        int32_t dc_offset;
+        float rms;
+        uint32_t clipping_count;
+        bool is_all_zeros;
+        bool is_silent;
+        bool is_voice;
+    } mic_diagnostic_stats_t;
+
+    bool run_mic_diagnostic(uint32_t duration_ms, mic_diagnostic_stats_t &stats);
+    bool play_test_tone(float freq_hz, uint32_t duration_ms, float volume_pct = 12.0f);
+
 private:
     lumi_audio_config_t _cfg;
     i2s_config_t _i2s_cfg;

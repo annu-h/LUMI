@@ -22,6 +22,17 @@ extern "C" {
 #endif
 
 /* ========================================================================== */
+/* Staged Hardware Bring-Up Enable/Disable Flags                              */
+/* ========================================================================== */
+#define LUMI_ENABLE_TFT                0   /* 0 = TFT NOT PHYSICALLY INSTALLED YET (default: disabled) */
+#define LUMI_ENABLE_SD                 1   /* 1 = MicroSD card enabled (SPI CS: GPIO 17)               */
+#define LUMI_ENABLE_RTC                1   /* 1 = DS3231 RTC enabled (I2C SDA: 21, SCL: 22)           */
+#define LUMI_ENABLE_KEYPAD             1   /* 1 = 4x3 Keypad enabled (Rows: 14,27,16,12 | Cols: 35,13,15) */
+#define LUMI_ENABLE_AUDIO              1   /* 1 = I2S Audio enabled (Mic: 34, Amp: 33, BCLK: 26, WS: 25) */
+#define LUMI_ENABLE_LED                1   /* 1 = Status LED enabled (GPIO 32, active HIGH)            */
+
+
+/* ========================================================================== */
 /* Hardware Safety Verification Flags                                         */
 /* ========================================================================== */
 

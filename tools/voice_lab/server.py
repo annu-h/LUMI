@@ -2259,6 +2259,8 @@ def run_server(host: str = "127.0.0.1", port: int = 8765) -> None:
         httpd.server_close()
         print("Voice Lab server stopped cleanly.")
 
+main = run_server
+
 
 if __name__ == "__main__":
     import argparse

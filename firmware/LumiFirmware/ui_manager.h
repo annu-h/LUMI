@@ -60,6 +60,11 @@ public:
     void nextContentItem();
     void prevContentItem();
 
+    // Hardware Diagnostic Mode
+    void runDiagnosticTest();
+    void renderDiagnosticDashboard();
+    void updateDiagnosticKey(char keyChar, uint8_t row, uint8_t col);
+
 private:
     TFT_eSPI tft;
     ScreenState currentState;

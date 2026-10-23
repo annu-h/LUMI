@@ -31,6 +31,16 @@ def open_browser():
     webbrowser.open(BASE_URL)
 
 
+def is_server_running(host: str = HOST, port: int = PORT) -> bool:
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            return s.connect_ex((host, port)) == 0
+    except Exception:
+        return False
+
+
 def main():
     print("=" * 70)
     print(" ⭐ LUMI Companion — Integrated Voice Intelligence & Hardware Simulator ⭐")
@@ -43,10 +53,25 @@ def main():
     # Launch browser in separate thread
     threading.Thread(target=open_browser, daemon=True).start()
 
+    # If server is already running in another terminal / background process
+    if is_server_running(HOST, PORT):
+        print(f"\n[INFO] LUMI Voice Lab server is already active and listening on {BASE_URL}")
+        print("[INFO] Press Ctrl+C in this terminal when you are done.")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n[STOP] LUMI Companion launcher closed.")
+        return
+
     # Import and run server
-    from tools.voice_lab.server import main as run_server
     try:
-        run_server()
+        from tools.voice_lab.server import run_server
+    except ImportError:
+        from tools.voice_lab.server import main as run_server
+
+    try:
+        run_server(host=HOST, port=PORT)
     except KeyboardInterrupt:
         print("\n[STOP] LUMI Companion stopped cleanly.")
 

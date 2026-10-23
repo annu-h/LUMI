@@ -25,10 +25,12 @@ UIManager::UIManager()
 }
 
 void UIManager::begin() {
+#if LUMI_ENABLE_TFT
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(COLOR_BG);
     setScreenState(ScreenState::HOME);
+#endif
 }
 
 void UIManager::loadOfflineItem(uint8_t index) {
@@ -43,6 +45,7 @@ void UIManager::loadOfflineItem(uint8_t index) {
 
 void UIManager::setScreenState(ScreenState state) {
     currentState = state;
+#if LUMI_ENABLE_TFT
     tft.fillScreen(COLOR_BG);
     renderStatusBar(95);
 
@@ -54,6 +57,7 @@ void UIManager::setScreenState(ScreenState state) {
         case ScreenState::SETTINGS: renderSettingsScreen(); break;
         case ScreenState::PROGRESS: renderProgressScreen(); break;
     }
+#endif
 }
 
 void UIManager::setLumiFace(LumiFaceState face) {
@@ -363,3 +367,80 @@ void UIManager::renderProgressScreen() {
     tft.setTextColor(0x7BEF, COLOR_BG);
     tft.drawString("Keep up the curious questions!", 160, 202, 1);
 }
+
+void UIManager::runDiagnosticTest() {
+#if LUMI_ENABLE_TFT
+    tft.init();
+    tft.setRotation(1);
+
+    // 1. Color sequence
+    tft.fillScreen(TFT_RED);
+    delay(400);
+    tft.fillScreen(TFT_GREEN);
+    delay(400);
+    tft.fillScreen(TFT_BLUE);
+    delay(400);
+    tft.fillScreen(TFT_WHITE);
+    delay(400);
+
+    // 2. Main diagnostic dashboard
+    renderDiagnosticDashboard();
+#endif
+}
+
+void UIManager::renderDiagnosticDashboard() {
+#if LUMI_ENABLE_TFT
+    tft.fillScreen(TFT_BLACK);
+
+    // Title banner
+    tft.fillRect(0, 0, 320, 30, 0x037A); // Deep blue-cyan
+    tft.setTextColor(TFT_WHITE, 0x037A);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("LUMI TFT TEST", 160, 15, 4);
+
+    // Hardware specifications
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString("Controller: ILI9341 (SPI)", 15, 36, 2);
+    tft.drawString("Resolution: 320 x 240 (Landscape)", 15, 54, 2);
+
+    // Wiring confirmation
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString("CS: GPIO 5   | DC: GPIO 2   | RST: GPIO 4", 15, 74, 2);
+    tft.drawString("SCK: GPIO 18 | MOSI: GPIO 23| LED: 3.3V", 15, 92, 2);
+
+    // Color bar test
+    uint16_t colors[] = {TFT_RED, TFT_GREEN, TFT_BLUE, TFT_YELLOW, TFT_CYAN, TFT_MAGENTA, TFT_WHITE};
+    int barW = 38;
+    for (int i = 0; i < 7; i++) {
+        tft.fillRect(15 + (i * barW), 114, barW - 4, 20, colors[i]);
+        tft.drawRect(15 + (i * barW), 114, barW - 4, 20, TFT_DARKGREY);
+    }
+
+    // Keypad interaction box
+    tft.drawRoundRect(15, 142, 290, 72, 6, TFT_DARKGREY);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString("Keypad Matrix Live Feedback:", 25, 150, 2);
+    tft.setTextColor(0x07E0, TFT_BLACK); // Bright green
+    tft.drawString("Press any Key [0-9, *, #]", 25, 174, 2);
+
+    // Status footer
+    tft.fillRect(0, 222, 320, 18, 0x18E3);
+    tft.setTextColor(TFT_GREENYELLOW, 0x18E3);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("TFT SPI OK - Ready for Input", 160, 231, 1);
+#endif
+}
+
+void UIManager::updateDiagnosticKey(char keyChar, uint8_t row, uint8_t col) {
+#if LUMI_ENABLE_TFT
+    // Redraw the keypad feedback section
+    tft.fillRect(20, 170, 280, 40, TFT_BLACK);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.setTextDatum(TL_DATUM);
+    char buf[48];
+    snprintf(buf, sizeof(buf), "KEY: '%c' (Row:%d Col:%d)", keyChar, row, col);
+    tft.drawString(buf, 25, 174, 4);
+#endif
+}
+

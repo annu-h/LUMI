@@ -111,19 +111,39 @@ void AudioManager::flush_all() {
     memset(_spk_ring, 0, sizeof(_spk_ring));
 }
 
+#include <math.h>
+
 uint16_t AudioManager::read_mic(int16_t *out, uint16_t max_samples) {
-    if (!_i2s_initialized || _capture_state != AUDIO_CAPTURE_RUNNING) {
+    if (!_i2s_initialized || _capture_state != AUDIO_CAPTURE_RUNNING || out == nullptr || max_samples == 0) {
         return 0;
     }
-    uint16_t avail = (_mic_ring_fill > max_samples) ? max_samples : (uint16_t)_mic_ring_fill;
-    if (avail > 0 && out != nullptr) {
-        for (uint16_t i = 0; i < avail; i++) {
-            out[i] = _mic_ring[_mic_tail];
-            _mic_tail = (_mic_tail + 1) % LUMI_MIC_RING_SIZE;
+
+    // Limit chunk size per read
+    uint16_t to_read = (max_samples > 128) ? 128 : max_samples;
+    int32_t rx_stereo[256]; // 128 stereo pairs (32-bit slot width)
+    size_t bytes_read = 0;
+
+    esp_err_t err = i2s_read((i2s_port_t)_cfg.port_num, (void*)rx_stereo,
+                             to_read * 2 * sizeof(int32_t), &bytes_read, 0);
+
+    if (err == ESP_OK && bytes_read > 0) {
+        uint16_t frames = (uint16_t)(bytes_read / (2 * sizeof(int32_t)));
+        for (uint16_t i = 0; i < frames; i++) {
+            // INMP441 L/R tied to GND: Left channel data is at index [2*i].
+            // Data is 24-bit MSB-aligned in 32-bit slot.
+            // Arithmetic right shift by 14 provides +12dB digital gain with saturation clamping.
+            int32_t raw_left = rx_stereo[2 * i];
+            int32_t s = raw_left >> 14;
+            if (s > 32767) s = 32767;
+            else if (s < -32768) s = -32768;
+            out[i] = (int16_t)s;
         }
-        _mic_ring_fill -= avail;
+        _mic_chunk_count++;
+        return frames;
+    } else if (err != ESP_OK) {
+        _last_error = (int)err;
     }
-    return avail;
+    return 0;
 }
 
 uint16_t AudioManager::push_spk(const int16_t *in, uint16_t num_samples) {
@@ -133,7 +153,7 @@ uint16_t AudioManager::push_spk(const int16_t *in, uint16_t num_samples) {
     uint16_t pushed = 0;
     for (uint16_t i = 0; i < num_samples; i++) {
         if (_spk_ring_fill >= LUMI_SPK_RING_SIZE) {
-            break; // ring full — drop (underrun indicator handled by count)
+            break; // ring full
         }
         _spk_ring[_spk_head] = in[i];
         _spk_head = (_spk_head + 1) % LUMI_SPK_RING_SIZE;
@@ -149,71 +169,125 @@ void AudioManager::update_playback() {
         return;
     }
 
-    // Read microphone samples continuously via I2S RX.
-    // We use a fixed-size buffer and push to the ring.
-    int32_t rx_samples[128];
-    size_t bytes_read = 0;
-    esp_err_t err = i2s_read((i2s_port_t)_cfg.port_num, (void*)rx_samples,
-                             sizeof(rx_samples), &bytes_read, 0);
-    if (err == ESP_OK && bytes_read > 0) {
-        uint16_t sample_count = (uint16_t)(bytes_read / 4); // 32-bit = 4 bytes per sample
-        int16_t converted[128];
-        for (uint16_t i = 0; i < sample_count && i < 128; i++) {
-            // I2S 32-bit standard: left-aligned 24-bit or 32-bit data.
-            // For INMP441, data is left-justified 24-bit PCM inside a 32-bit slot.
-            // We extract the high 16 bits to get signed 16-bit PCM.
-            int32_t value = rx_samples[i];
-            if (value > 0x7FFF) value |= 0xFFFF0000; // sign-extend
-            int16_t s16 = (int16_t)(value >> 8); // extract high 16 bits from 32-bit slot
-            converted[i] = s16;
-        }
-        // Push to mic ring buffer (bounded)
-        uint16_t to_push = sample_count;
-        uint16_t available = (uint16_t)(LUMI_MIC_RING_SIZE - _mic_ring_fill);
-        if (to_push > available) {
-            to_push = available;
-        }
-        for (uint16_t i = 0; i < to_push; i++) {
-            _mic_ring[_mic_head] = converted[i];
-            _mic_head = (_mic_head + 1) % LUMI_MIC_RING_SIZE;
-            _mic_ring_fill++;
-        }
-        // If overflow occurred, count as a gap (lost samples)
-        if (to_push < sample_count) {
-            _mic_gap_count++;
-        }
-    } else if (err != ESP_OK) {
-        _last_error = (int)err;
-    }
-
-    // Transmit speaker playback via I2S TX.
+    // Transmit speaker playback via I2S TX
     if (_spk_ring_fill > 0 && _spk_remaining > 0) {
-        int32_t tx_samples[128];
+        int32_t tx_stereo[256]; // 128 stereo pairs
         uint16_t to_send = (uint16_t)((_spk_ring_fill > 128) ? 128 : _spk_ring_fill);
         uint16_t samples_read = 0;
-        for (uint16_t i = 0; i < to_send && samples_read < 128; i++) {
-            tx_samples[i] = (int32_t)_spk_ring[_spk_tail];
+
+        for (uint16_t i = 0; i < to_send; i++) {
+            int16_t sample16 = _spk_ring[_spk_tail];
             _spk_tail = (_spk_tail + 1) % LUMI_SPK_RING_SIZE;
             samples_read++;
+
+            // Shift 16-bit audio into top 16 bits of 32-bit slot for MAX98357A.
+            // Duplicate to both Left and Right channels for mono speaker output.
+            int32_t out_word = ((int32_t)sample16) << 16;
+            tx_stereo[2 * i]     = out_word;
+            tx_stereo[2 * i + 1] = out_word;
         }
         _spk_ring_fill -= samples_read;
 
         size_t bytes_written = 0;
-        esp_err_t tx_err = i2s_write((i2s_port_t)_cfg.port_num, (void*)tx_samples,
-                                     samples_read * sizeof(int32_t), &bytes_written, 0);
+        esp_err_t tx_err = i2s_write((i2s_port_t)_cfg.port_num, (void*)tx_stereo,
+                                     samples_read * 2 * sizeof(int32_t), &bytes_written, 0);
         if (tx_err != ESP_OK) {
             _last_error = (int)tx_err;
         }
     } else if (_spk_remaining > 0 && _spk_ring_fill == 0) {
-        // Speaker underrun: buffer empty but playback not finished.
         _spk_underrun_count++;
     }
 
-    // Check playback complete condition.
+    // Check playback complete condition
     if (_play_state == AUDIO_PLAY_RUNNING && _spk_remaining == 0 && _spk_ring_fill == 0) {
         _play_state = AUDIO_PLAY_STOPPING;
         _play_state = AUDIO_PLAY_STOPPED;
     }
+}
+
+bool AudioManager::run_mic_diagnostic(uint32_t duration_ms, mic_diagnostic_stats_t &stats) {
+    if (!_i2s_initialized) return false;
+
+    stats.total_samples = 0;
+    stats.min_sample = 32767;
+    stats.max_sample = -32768;
+    stats.clipping_count = 0;
+    int64_t sum = 0;
+    double sum_sq = 0.0;
+
+    start_capture();
+
+    unsigned long start_time = millis();
+    int16_t buf[128];
+
+    while (millis() - start_time < duration_ms) {
+        uint16_t n = read_mic(buf, 128);
+        if (n > 0) {
+            for (uint16_t i = 0; i < n; i++) {
+                int16_t s = buf[i];
+                stats.total_samples++;
+                if (s < stats.min_sample) stats.min_sample = s;
+                if (s > stats.max_sample) stats.max_sample = s;
+                if (s == 32767 || s == -32768) stats.clipping_count++;
+                sum += s;
+                sum_sq += ((double)s * (double)s);
+            }
+        } else {
+            delay(1);
+        }
+    }
+
+    stop_capture();
+
+    if (stats.total_samples > 0) {
+        stats.peak_to_peak = (int32_t)stats.max_sample - (int32_t)stats.min_sample;
+        stats.dc_offset = (int32_t)(sum / (int64_t)stats.total_samples);
+        stats.rms = (float)sqrt(sum_sq / (double)stats.total_samples);
+        stats.is_all_zeros = (stats.min_sample == 0 && stats.max_sample == 0);
+        stats.is_silent = (stats.rms < 120.0f);
+        stats.is_voice = (stats.rms >= 220.0f);
+        return true;
+    }
+
+    return false;
+}
+
+bool AudioManager::play_test_tone(float freq_hz, uint32_t duration_ms, float volume_pct) {
+    if (!_i2s_initialized) return false;
+
+    // Constrain volume to safe range (5% to 30%)
+    if (volume_pct < 5.0f) volume_pct = 5.0f;
+    if (volume_pct > 30.0f) volume_pct = 30.0f;
+
+    float amplitude = 32767.0f * (volume_pct / 100.0f);
+    float sample_rate = (float)_cfg.sample_rate_hz;
+    float phase_step = 2.0f * (float)M_PI * freq_hz / sample_rate;
+    float phase = 0.0f;
+
+    unsigned long start_time = millis();
+    int32_t tx_chunk[256]; // 128 stereo pairs
+
+    while (millis() - start_time < duration_ms) {
+        for (int i = 0; i < 128; i++) {
+            float val = sinf(phase) * amplitude;
+            phase += phase_step;
+            if (phase >= 2.0f * (float)M_PI) phase -= 2.0f * (float)M_PI;
+
+            int32_t out_word = ((int32_t)(int16_t)val) << 16;
+            tx_chunk[2 * i]     = out_word;
+            tx_chunk[2 * i + 1] = out_word;
+        }
+
+        size_t written = 0;
+        i2s_write((i2s_port_t)_cfg.port_num, (void*)tx_chunk, sizeof(tx_chunk), &written, pdMS_TO_TICKS(50));
+    }
+
+    // Flush with silence to avoid click/pop
+    memset(tx_chunk, 0, sizeof(tx_chunk));
+    size_t written = 0;
+    i2s_write((i2s_port_t)_cfg.port_num, (void*)tx_chunk, sizeof(tx_chunk), &written, pdMS_TO_TICKS(50));
+
+    return true;
 }
 
 lumi_audio_format_t AudioManager::audio_format() const {
@@ -224,3 +298,4 @@ lumi_audio_format_t AudioManager::audio_format() const {
     fmt.format = LUMI_AUDIO_FORMAT_LE16;
     return fmt;
 }
+

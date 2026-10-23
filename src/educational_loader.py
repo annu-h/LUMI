@@ -17,6 +17,7 @@ Supported Datasets:
 - shapes.csv: Geometry and shape identification questions
 """
 
+from src import ContentItem
 import csv
 import logging
 from dataclasses import dataclass

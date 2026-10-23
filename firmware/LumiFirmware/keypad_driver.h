@@ -41,12 +41,18 @@ public:
     static const uint8_t ROWS = LUMI_KEYPAD_NUM_ROWS;
     static const uint8_t COLS = LUMI_KEYPAD_NUM_COLS;
 
+    // Diagnostic inspection methods
+    bool scanRaw(int &outRow, int &outCol, KeyCode &outKey);
+    void readColumnIdleStates(int &col0, int &col1, int &col2);
+    static char keyToChar(KeyCode key);
+
 private:
     static const uint8_t ROW_PINS[ROWS];
     static const uint8_t COL_PINS[COLS];
     static const KeyCode KEY_MAP[ROWS][COLS];
 
     unsigned long lastDebounceTime;
-    KeyCode lastKeyState;
+    KeyCode lastRawState;
+    KeyCode reportedKey;
     static const unsigned long DEBOUNCE_DELAY = LUMI_KEYPAD_DEBOUNCE_MS;
 };
